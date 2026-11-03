@@ -1,0 +1,5 @@
+# Only package.json and server.mjs go into the image (see the Dockerfile's COPY line).
+# Everything else is excluded so an unrelated edit never changes the image digest.
+*
+!package.json
+!server.mjs

@@ -1,0 +1,101 @@
+# Builds the orchestrator image reproducibly and pushes it to GHCR.
+#
+# This file is for the PUBLIC config repository (the contents of lab/cloud-orchestrator/ copied
+# to its root). GitHub only runs workflows found in a repository's own .github/workflows/, so
+# here, inside the company monorepo, it is inert.
+#
+# Adapted from tinfoilsh/tinfoil-containers-hello-world (read 2026-10-23) with four changes
+# for a reproducible digest: one platform, provenance and SBOM attestations off, the image
+# exporter's rewrite-timestamp, and a second no-cache build whose digest must match the first.
+# Run it from the Actions tab with an image version, then copy the digest from the summary
+# into tinfoil-config.yml before running Tinfoil Release.
+
+name: Build Image
+
+run-name: Build image ${{ inputs.version }}
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Image version (e.g. v0.1.0)"
+        required: true
+        type: string
+
+concurrency:
+  group: kitchentableai-orchestrator-image-${{ inputs.version }}
+
+env:
+  # Fixed timestamps in the image config and in every layer. The Dockerfile explains the rest.
+  SOURCE_DATE_EPOCH: 0
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read   # checkout
+      packages: write  # push the image
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@4d04d5d9486b7bd6fa91e7baf45bbb4f8b9deedd # v4.0.0
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@4907a6ddec9925e35a0a9e82d7399ccc52663121 # v4.1.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Image metadata
+        id: meta
+        uses: docker/metadata-action@030e881283bb7a6894de51c315a6bfe6a94e05cf # v6.0.0
+        with:
+          images: ghcr.io/${{ github.repository }}
+          tags: |
+            type=semver,pattern={{version}},value=${{ inputs.version }}
+            type=sha,format=short
+
+      - name: Build and push (reproducible)
+        id: build
+        uses: docker/build-push-action@bcafcacb16a39f128d818304e6c9c0c18556b85f # v7.1.0
+        with:
+          context: .
+          platforms: linux/amd64
+          provenance: false
+          sbom: false
+          no-cache: true
+          tags: ${{ steps.meta.outputs.tags }}
+          outputs: type=image,push=true,rewrite-timestamp=true
+
+      - name: Build again without cache (reproducibility gate)
+        id: rebuild
+        uses: docker/build-push-action@bcafcacb16a39f128d818304e6c9c0c18556b85f # v7.1.0
+        with:
+          context: .
+          platforms: linux/amd64
+          provenance: false
+          sbom: false
+          no-cache: true
+          tags: ghcr.io/${{ github.repository }}:repro-check
+          outputs: type=image,push=false,rewrite-timestamp=true
+
+      - name: Compare digests
+        env:
+          FIRST: ${{ steps.build.outputs.digest }}
+          SECOND: ${{ steps.rebuild.outputs.digest }}
+          IMAGE: ghcr.io/${{ github.repository }}
+        run: |
+          if [ "$FIRST" != "$SECOND" ]; then
+            echo "::error::the two builds differ: $FIRST vs $SECOND. The image is not reproducible; do not pin it."
+            exit 1
+          fi
+          {
+            printf 'Image: `%s@%s`\n\n' "$IMAGE" "$FIRST"
+            printf 'Reproducible: a second no-cache build produced the same digest.\n'
+          } >> "$GITHUB_STEP_SUMMARY"

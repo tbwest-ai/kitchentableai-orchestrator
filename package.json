@@ -1,0 +1,24 @@
+{
+  "name": "kitchentableai-orchestrator",
+  "version": "0.1.0",
+  "description": "Go/no-go spike: a small orchestrator for KitchenTableAI that runs inside an attested Tinfoil container. No runtime dependencies.",
+  "license": "AGPL-3.0-only",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "start": "node server.mjs",
+    "dev": "npm run bundle-web && node scripts/dev.mjs",
+    "test": "node --test \"test/*.test.mjs\"",
+    "web": "npm run bundle-web && node web/serve.mjs",
+    "make-signing-key": "node scripts/make-signing-key.mjs",
+    "build-image": "node scripts/build-image.mjs",
+    "bundle-web": "esbuild web/vendor/entry.mjs --bundle --format=esm --platform=browser --target=es2022 --minify --legal-comments=none --external:zlib --external:node:* --outfile=web/vendor/tinfoil.js"
+  },
+  "devDependencies": {
+    "esbuild": "0.25.9",
+    "tinfoil": "1.3.0"
+  }
+}

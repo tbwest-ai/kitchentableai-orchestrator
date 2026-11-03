@@ -1,0 +1,10 @@
+# Keys never enter a repository, public or private. scripts/make-signing-key.mjs writes one
+# of these for `tinfoil secret create`; delete it afterwards.
+*.pem
+*.key
+# Dependencies and build output. The service itself has none; the dev dependencies exist only
+# to bundle the test page (tinfoil SDK, esbuild).
+node_modules/
+*.tar
+# The browser page bundle, built by `npm run bundle-web` from the pinned dev dependency.
+web/vendor/tinfoil.js

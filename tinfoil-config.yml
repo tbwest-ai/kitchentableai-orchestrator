@@ -1,0 +1,71 @@
+# KitchenTableAI orchestrator, spike build. SPDX-License-Identifier: AGPL-3.0-only
+#
+# This file is measured. Tinfoil hashes it into the enclave's kernel command line
+# (tinfoil-config-hash=... in the published tinfoil-deployment.json), so the image digest,
+# the environment values, the secret names and the egress allowlist below are all covered
+# by the attestation a client checks. It must live in a PUBLIC GitHub repository.
+#
+# Placeholders to fill before the first release: OWNER and the image digest. The digest
+# comes from the Build Image workflow summary (or scripts/build-image.mjs locally).
+#
+# 0.14.15 is the CVM version Tinfoil's own production containers used on 2026-10-23
+# (confidential-websearch, confidential-pii-cpu). 0.14.16 was the newest release that day.
+cvm-version: 0.14.15
+cpus: 2
+memory: 8192
+
+networks:
+  # Exit test 2: the only host the container may reach is the inference API. If the model
+  # call succeeds with this list, the allowlist is doing its job. There is deliberately no
+  # entry for our own control plane in the spike.
+  inference:
+    egress: allowlist
+    allow:
+      - inference.tinfoil.sh
+
+containers:
+  - name: "orchestrator"
+    # Replace the all-zero digest with the real one. A tag alone is rejected.
+    image: "ghcr.io/OWNER/kitchentableai-orchestrator@sha256:0000000000000000000000000000000000000000000000000000000000000000"
+    networks: [inference]
+    env:
+      - PORT: "8080"
+      - INFERENCE_URL: "https://inference.tinfoil.sh/v1/chat/completions"
+      - MODEL: "glm-5-3"
+      # GLM 5.3 cannot switch reasoning off; "low" is the floor. gemma4-31b takes "none".
+      - REASONING_EFFORT: "low"
+      - MAX_TOKENS: "400"
+    secrets:
+      # Both are Tinfoil-managed secrets, created with `tinfoil secret create` (README step 7).
+      # TINFOIL_API_KEY: the inference key.
+      # SIGNING_KEY_PEM: an Ed25519 private key (PKCS#8 PEM) the service signs replies with
+      #   while attested keys are in beta. Exit test 3's fallback path.
+      - TINFOIL_API_KEY
+      - SIGNING_KEY_PEM
+    # Exit test 3's preferred path. Beta: attested keys need V3 attestation, and on
+    # 2026-10-23 the JavaScript SDK (tinfoil@1.3.0) verified only the v1/v2 predicate
+    # formats. So: pass exit tests 1 and 2 first with this block commented out, then
+    # uncomment both `keys:` and `attested-keys:`, release a new tag, update the instance
+    # and run the browser check again. If the browser then fails, that is a finding.
+    # keys: [turn-signing]
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:8080/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+
+# attested-keys:
+#   - id: turn-signing
+#     key: ed25519
+# The service reads /run/tinfoil/keys/turn-signing/private_key.pem when it exists and reports
+# key_source "attested-key"; otherwise it falls back to SIGNING_KEY_PEM ("managed-secret").
+
+shim:
+  upstream-port: 8080
+  paths:
+    - /health
+    - /turn
+    - /pubkey
+  # `origins` is left unset for the spike so the browser test page can be served from
+  # localhost. Production sets it to the app's origin.

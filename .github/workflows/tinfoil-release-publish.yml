@@ -1,0 +1,34 @@
+# Phase 2 of a Tinfoil release, dispatched by tinfoil-release.yml on the new tag: measure the
+# enclave (CVM image + tinfoil-config.yml + image digest), sign the attestation with GitHub's
+# OIDC identity, and publish tinfoil-deployment.json and tinfoil.hash on the GitHub release.
+# Each release lands in the Sigstore transparency log; that is what a client's verifier checks.
+#
+# Copied from tinfoilsh/tinfoil-containers-hello-world on 2026-10-23, with the action bumped
+# to measure-image-action v0.14.1 (its latest release that day; attested-keys declarations
+# need v0.14.x and CVM image 0.14.10 or newer). For the PUBLIC config repository.
+
+name: Tinfoil Release - Publish (auto-triggered)
+
+run-name: Publish release ${{ github.ref_name }}
+
+on:
+  workflow_dispatch:
+
+concurrency:
+  group: tinfoil-container-release-${{ github.ref_name }}
+
+jobs:
+  measure-and-release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      packages: write
+      id-token: write
+      attestations: write
+
+    steps:
+      - name: Measure image, attest, and publish the release
+        uses: tinfoilsh/measure-image-action@beba4296251f7a9bc44b481ebafe4863509e4380 # v0.14.1
+        with:
+          config-file: ${{ github.workspace }}/tinfoil-config.yml
+          github-token: ${{ secrets.GITHUB_TOKEN }}

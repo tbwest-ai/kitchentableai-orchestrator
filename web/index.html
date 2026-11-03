@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Orchestrator check</title>
+<!-- SPDX-License-Identifier: AGPL-3.0-only
+     Browser test page for the KitchenTableAI orchestrator spike. It runs Tinfoil's own
+     JavaScript verifier (npm package "tinfoil") in this browser against a container, shows
+     the measurement, sends one turn over the verified channel and checks the reply's
+     signature. Nothing about a family is entered here. -->
+<script type="importmap">
+{ "imports": { "tinfoil": "./vendor/tinfoil.js" } }
+</script>
+<style>
+  :root { --bg: #fff; --fg: #1c1c1e; --muted: #6b6b70; --line: #e3e3e6; --ok: #1d7a3a; --bad: #b3261e; --warn: #9a6700; --card: #f7f7f8; }
+  @media (prefers-color-scheme: dark) { :root { --bg: #111214; --fg: #ececf0; --muted: #9a9aa3; --line: #2b2c31; --ok: #5fcf7f; --bad: #ff7a70; --warn: #e3b341; --card: #1a1b1f; } }
+  body { margin: 0; padding: 24px 16px 64px; background: var(--bg); color: var(--fg); font: 15px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif; max-width: 900px; margin-inline: auto; }
+  h1 { font-size: 22px; margin: 0 0 4px; }
+  h2 { font-size: 16px; margin: 28px 0 8px; }
+  p.lead { color: var(--muted); margin: 0 0 20px; }
+  label { display: block; font-size: 13px; color: var(--muted); margin-top: 10px; }
+  input, textarea { width: 100%; box-sizing: border-box; font: inherit; padding: 8px 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--bg); color: var(--fg); }
+  textarea { min-height: 64px; resize: vertical; }
+  .row { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px; }
+  button { font: inherit; padding: 8px 14px; border-radius: 8px; border: 1px solid var(--line); background: var(--card); color: var(--fg); cursor: pointer; }
+  button.primary { background: var(--fg); color: var(--bg); border-color: var(--fg); }
+  button:disabled { opacity: .5; cursor: default; }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px; margin-top: 12px; }
+  .status { font-weight: 600; }
+  .ok { color: var(--ok); } .bad { color: var(--bad); } .warn { color: var(--warn); } .muted { color: var(--muted); }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  td, th { text-align: left; padding: 4px 6px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th { color: var(--muted); font-weight: 500; white-space: nowrap; width: 180px; }
+  code, pre { font: 12px/1.45 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+  pre { white-space: pre-wrap; word-break: break-all; background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 10px; max-height: 320px; overflow: auto; margin: 8px 0 0; }
+  .steps li { margin: 2px 0; }
+  .banner { border-left: 4px solid var(--warn); padding: 8px 12px; background: var(--card); border-radius: 0 8px 8px 0; margin-top: 12px; display: none; }
+</style>
+</head>
+<body>
+<h1>Orchestrator check</h1>
+<p class="lead">Verifies a Tinfoil container from this browser, shows its measurement, sends one turn through the verified channel, and checks the signature on the reply.</p>
+
+<div class="card">
+  <label for="enclave">Container URL (https)</label>
+  <input id="enclave" value="https://orchestrator-spike.ORG.containers.tinfoil.dev" spellcheck="false">
+  <label for="repo">Config repository (owner/repo, optional @tag)</label>
+  <input id="repo" value="OWNER/kitchentableai-orchestrator" spellcheck="false">
+  <label for="prompt">Prompt for the one turn</label>
+  <textarea id="prompt">Say hello in one sentence.</textarea>
+  <div class="row">
+    <button id="verify" class="primary">1. Verify the container</button>
+    <button id="turn" disabled>2. Send one turn</button>
+    <button id="control" title="Tinfoil's own websearch container, built with the same release workflow. Proves this browser can verify a container at all.">Control: verify websearch.tinfoil.sh</button>
+    <button id="local" title="Talks to http://localhost:8080 with plain fetch. No attestation. For npm run dev.">Local, unverified</button>
+    <button id="ed" title="Does this browser's WebCrypto verify Ed25519 signatures?">Check Ed25519 support</button>
+  </div>
+  <div id="banner" class="banner"></div>
+</div>
+
+<h2>Verification</h2>
+<div class="card">
+  <div id="vstatus" class="status muted">Not run.</div>
+  <ul id="vsteps" class="steps"></ul>
+  <table id="vdoc"></table>
+</div>
+
+<h2>Turn and signature</h2>
+<div class="card">
+  <div id="tstatus" class="status muted">Not run.</div>
+  <table id="tdoc"></table>
+</div>
+
+<h2>Evidence</h2>
+<div class="card">
+  <div class="row" style="margin-top:0">
+    <button id="copy">Copy evidence JSON</button>
+    <span id="hosts" class="muted"></span>
+  </div>
+  <pre id="evidence">{}</pre>
+</div>
+
+<script type="module" src="./app.js"></script>
+</body>
+</html>
