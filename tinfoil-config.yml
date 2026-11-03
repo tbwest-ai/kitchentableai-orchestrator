@@ -58,6 +58,11 @@ containers:
 attested-keys:
   - id: turn-signing
     key: ed25519
+    # The image runs as the official node image's `node` user (uid 1000, gid 1000). Without
+    # these, private_key.pem is root-owned mode 0600 and the service cannot read it: v0.1.1
+    # booted to "unhealthy" on 2026-11-02 for exactly that reason.
+    uid: 1000
+    gid: 1000
 # The service reads /run/tinfoil/keys/turn-signing/private_key.pem when it exists and reports
 # key_source "attested-key"; otherwise it falls back to SIGNING_KEY_PEM ("managed-secret").
 
