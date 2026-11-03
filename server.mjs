@@ -77,8 +77,16 @@ function describeKey(privateKey, source, id) {
 export function loadSigningKey(env = process.env) {
   const attestedPem = join(ATTESTED_KEY_DIR, "private_key.pem");
   if (existsSync(attestedPem)) {
-    const privateKey = createPrivateKey(readFileSync(attestedPem, "utf8"));
-    return describeKey(privateKey, "attested-key", `tinfoil:${basename(ATTESTED_KEY_DIR)}`);
+    try {
+      const privateKey = createPrivateKey(readFileSync(attestedPem, "utf8"));
+      return describeKey(privateKey, "attested-key", `tinfoil:${basename(ATTESTED_KEY_DIR)}`);
+    } catch (err) {
+      // An attested key that is mounted but unreadable (wrong uid/gid on the mount, or a
+      // format this build does not parse) must not take the service down before its health
+      // check: say why, then fall back to the managed secret. The reply's key_source tells
+      // the operator which path is live.
+      console.error(`attested key at ${attestedPem} is present but unusable (${err.code ?? err.message}); falling back`);
+    }
   }
   const secret = env.SIGNING_KEY_PEM;
   if (secret && secret.trim()) {
