@@ -260,8 +260,9 @@ returns `ok: true`, a reply and `model: glm-5-3`. Fail: `inference unreachable` 
 cd lab/cloud-orchestrator && npm install && npm run web     # http://localhost:8097
 ```
 
-Enter the container URL and `OWNER/kitchentableai-orchestrator` (add `@v0.1.0` to pin the
-tag), click **1. Verify the container**, then **2. Send one turn**, then **Copy evidence JSON**
+Enter the container URL and `OWNER/kitchentableai-orchestrator` **without** a tag (the browser SDK
+1.3.0 returns HTTP 400 from the attestation service for `repo@tag`; it verifies the repository's
+latest release and reports its tag and digest, which the page shows), click **1. Verify the container**, then **2. Send one turn**, then **Copy evidence JSON**
 and paste it into the dated results note in `company/`. Also click **Check Ed25519 support**
 once. Pass: every verification step `success`, a reply, "signature verified
 (managed-secret)". If the Verify step fails, the error names the step; the most likely ones
