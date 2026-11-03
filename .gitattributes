@@ -1,0 +1,7 @@
+# Line endings are part of the image, and the image must build to the same digest everywhere.
+# Every text file is stored and checked out with LF, on Windows too, so a laptop build and the
+# GitHub Actions build see identical bytes.
+* text=auto eol=lf
+*.png binary
+*.jpg binary
+*.ico binary
