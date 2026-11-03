@@ -47,7 +47,7 @@ containers:
     # formats. So: pass exit tests 1 and 2 first with this block commented out, then
     # uncomment both `keys:` and `attested-keys:`, release a new tag, update the instance
     # and run the browser check again. If the browser then fails, that is a finding.
-    # keys: [turn-signing]
+    keys: [turn-signing]
     healthcheck:
       test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:8080/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
       interval: 30s
@@ -55,9 +55,9 @@ containers:
       retries: 3
       start_period: 30s
 
-# attested-keys:
-#   - id: turn-signing
-#     key: ed25519
+attested-keys:
+  - id: turn-signing
+    key: ed25519
 # The service reads /run/tinfoil/keys/turn-signing/private_key.pem when it exists and reports
 # key_source "attested-key"; otherwise it falls back to SIGNING_KEY_PEM ("managed-secret").
 
