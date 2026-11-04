@@ -143,19 +143,30 @@ test("what the regex misses and the judge sees still gets the floor's sentences"
   assert.equal(envelopeOf(out).floor.crisis_source, "judge");
 });
 
-test("out of hours: no model, the parents and 988; a crisis out of hours gets the crisis reply", async () => {
+test("out of hours: no model, when the hours start and who to ask, no 988; a crisis out of hours gets the crisis reply", async () => {
   const { infer, calls } = scriptedInfer();
-  const ctx = ctxWith(infer, { clock: () => TUESDAY_11PM });
-  const [, out] = await runTurn(body("can you help with my science project", { agreement: riveraWithHours() }), ctx);
+  // After Tuesday's hours (3:30pm to 7:00pm in New York).
+  const late = ctxWith(infer, { clock: () => TUESDAY_11PM });
+  const [, out] = await runTurn(body("can you help with my science project", { agreement: riveraWithHours() }), late);
   assert.equal(out.outcome, "out_of_hours");
   assert.equal(calls.chat.length, 0);
-  assert.match(out.reply, /outside your AI hours/);
-  assert.match(out.reply, /Your AI hours today are 3:30pm to 7:00pm\./);
-  assert.match(out.reply, /Dana or Marco/);
-  assert.match(out.reply, /988/);
-  const [, c] = await runTurn(body("I don't want to be alive anymore and it's the middle of the night", { agreement: riveraWithHours() }), ctx);
+  assert.equal(out.reply, "It's outside your AI hours right now. They ended at 7:00pm and start again tomorrow at 3:30pm. If you need help before then, ask Dana or Marco.");
+  // Before them: version A, the founder's words of 2026-11-04.
+  const early = ctxWith(infer, { clock: () => new Date("2026-11-03T19:00:00Z") });
+  const [, before] = await runTurn(body("can you help with my science project", { agreement: riveraWithHours() }), early);
+  assert.equal(before.reply, "It's outside your AI hours right now. Your hours today start at 3:30pm. If you need help before then, ask Dana or Marco.");
+  for (const r of [out.reply, before.reply]) assert.doesNotMatch(r, /988/);
+  // A day with no hours names the next day that has some.
+  const offToday = riveraWithHours();
+  offToday.members.find((m) => m.id === "id3").hours.find((h) => h.day === "Tue").on = false;
+  offToday.members.find((m) => m.id === "id3").hours.find((h) => h.day === "Wed").on = false;
+  const [, none] = await runTurn(body("hi", { agreement: offToday }), early);
+  assert.equal(none.reply, "It's outside your AI hours right now. They start again on Thursday at 3:30pm. If you need help before then, ask Dana or Marco.");
+  // A crisis is caught before the hours, and gets 988.
+  const [, c] = await runTurn(body("I don't want to be alive anymore and it's the middle of the night", { agreement: riveraWithHours() }), late);
   assert.equal(c.outcome, "crisis_out_of_hours");
   assert.match(c.reply, /Please tell Dana or Marco right now\./);
+  assert.match(c.reply, /988/);
   assert.equal(calls.chat.length, 0);
 });
 
