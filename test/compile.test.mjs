@@ -110,7 +110,8 @@ test("every {they} in the band guide is followed by a word the agreement table h
 
 test("an adult's page has no kid rules, no judge talk, and says what the family sees", () => {
   const t = page("id1");
-  assert.match(t, /Dana is 41, an adult and a parent of Maya \(9\) and Theo \(13\)\./);
+  // The kids' pronouns are on a parent's page, so the AI does not guess them (2026-11-04).
+  assert.match(t, /Dana is 41, an adult and a parent of Maya \(9, she\/her\) and Theo \(13, he\/him\)\./);
   assert.match(t, /Nobody in the family sees an adult's conversations\./);
   assert.doesNotMatch(t, /Homework:/);
 });

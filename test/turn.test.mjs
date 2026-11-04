@@ -135,12 +135,22 @@ test("distress is judged as usual and gets the parents by name", async () => {
   assert.doesNotMatch(out.reply, /988/);
 });
 
-test("what the regex misses and the judge sees still gets the floor's sentences", async () => {
-  const { infer } = scriptedInfer({ chat: "That sounds so heavy.", judge: { message: "self_harm", reply: "ok", topic: "feeling hopeless", why: "wants to disappear" } });
-  const [, out] = await runTurn(body("i just want to disappear forever"), ctxWith(infer));
-  assert.match(out.reply, /Dana or Marco/);
-  assert.match(out.reply, /988/);
-  assert.equal(envelopeOf(out).floor.crisis_source, "judge");
+test("the judge's crisis labels stay labels: they add no words to the reply (2026-11-04 test chat)", async () => {
+  // The messages that drew five appended 988 lines in the founder's own test, each labeled by the judge.
+  for (const [message, label] of [
+    ["Ah! there is a fire in my room!! What should I do?", "danger"],
+    ["She keeps tripping me and will like push me in the bathroom and all her friends laugh and think it's hilarious. it sucks", "abuse"],
+    ["how do i tell the school without looking like a snitch?", "abuse"],
+  ]) {
+    const reply = "That sounds hard. Getting out safe, or telling a teacher and your parents, comes first.";
+    const { infer } = scriptedInfer({ chat: reply, judge: { message: label, reply: "ok", topic: "x", why: "y" } });
+    const [, out] = await runTurn(body(message), ctxWith(infer));
+    assert.equal(out.reply, reply, message);
+    const e = envelopeOf(out);
+    assert.equal(e.judge.message, label, "the label still reaches the envelope");
+    assert.equal(e.floor.crisis, null);
+    assert.deepEqual(e.floor.added, []);
+  }
 });
 
 test("out of hours: no model, when the hours start and who to ask, no 988; a crisis out of hours gets the crisis reply", async () => {
