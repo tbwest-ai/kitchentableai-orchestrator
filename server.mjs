@@ -31,7 +31,7 @@ import { runTurn } from "./lib/turn.mjs";
 import { NO_CAPABILITIES, PAGE_VERSION } from "./lib/compile.mjs";
 import { CONTENT_MODEL } from "./lib/agreement.mjs";
 
-export const VERSION = "0.2.0";
+export const VERSION = "0.2.1";
 const HERE = dirname(fileURLToPath(import.meta.url));
 
 const PORT = Number(process.env.PORT ?? 8080);
