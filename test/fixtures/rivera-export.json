@@ -1,0 +1,374 @@
+{
+  "format": "family-ai-agreement",
+  "version": 1,
+  "familyId": "eed52348-89b4-4208-8def-0247db9358e4",
+  "familyName": "The Rivera Family",
+  "completed": true,
+  "timestamps": {
+    "parentReviewAt": "2026-11-03T01:57:27.113Z",
+    "familyStartedAt": "2026-11-03T01:57:38.018Z",
+    "completedAt": "2026-11-03T01:57:38.314Z",
+    "emailedAt": null,
+    "changedAt": "2026-11-03T01:57:38.321Z",
+    "savedAt": "2026-11-03T01:57:38.325Z"
+  },
+  "members": [
+    {
+      "id": "id1",
+      "name": "Dana",
+      "band": "Adult",
+      "icon": "coffee",
+      "agreed": true,
+      "rules": [
+        "balance.boredom",
+        "think.starting-point",
+        "privacy.assume-stored",
+        "people.tell-a-person-first",
+        "age.no-companion-chatbots"
+      ],
+      "customRules": [
+        "id5",
+        "id6"
+      ],
+      "aiSettings": [
+        "people.ai-crisis"
+      ],
+      "hours": [
+        {
+          "day": "Mon",
+          "on": true,
+          "start": "00:00",
+          "end": "23:59"
+        },
+        {
+          "day": "Tue",
+          "on": true,
+          "start": "00:00",
+          "end": "23:59"
+        },
+        {
+          "day": "Wed",
+          "on": true,
+          "start": "00:00",
+          "end": "23:59"
+        },
+        {
+          "day": "Thu",
+          "on": true,
+          "start": "00:00",
+          "end": "23:59"
+        },
+        {
+          "day": "Fri",
+          "on": true,
+          "start": "00:00",
+          "end": "23:59"
+        },
+        {
+          "day": "Sat",
+          "on": true,
+          "start": "00:00",
+          "end": "23:59"
+        },
+        {
+          "day": "Sun",
+          "on": true,
+          "start": "00:00",
+          "end": "23:59"
+        }
+      ]
+    },
+    {
+      "id": "id2",
+      "name": "Marco",
+      "band": "Adult",
+      "icon": "mountain",
+      "agreed": false,
+      "rules": [
+        "balance.off-times-and-places",
+        "balance.boredom",
+        "privacy.assume-stored",
+        "people.tell-a-person-first",
+        "age.no-companion-chatbots"
+      ],
+      "customRules": [],
+      "aiSettings": [
+        "balance.ai-hours",
+        "people.ai-crisis"
+      ],
+      "hours": [
+        {
+          "day": "Mon",
+          "on": true,
+          "start": "00:00",
+          "end": "23:59"
+        },
+        {
+          "day": "Tue",
+          "on": true,
+          "start": "00:00",
+          "end": "23:59"
+        },
+        {
+          "day": "Wed",
+          "on": true,
+          "start": "00:00",
+          "end": "23:59"
+        },
+        {
+          "day": "Thu",
+          "on": true,
+          "start": "00:00",
+          "end": "23:59"
+        },
+        {
+          "day": "Fri",
+          "on": true,
+          "start": "00:00",
+          "end": "23:59"
+        },
+        {
+          "day": "Sat",
+          "on": true,
+          "start": "00:00",
+          "end": "23:59"
+        },
+        {
+          "day": "Sun",
+          "on": true,
+          "start": "00:00",
+          "end": "23:59"
+        }
+      ]
+    },
+    {
+      "id": "id3",
+      "name": "Maya",
+      "band": "8–11",
+      "icon": "rocket",
+      "agreed": true,
+      "rules": [
+        "balance.try-first",
+        "balance.boredom",
+        "think.starting-point",
+        "privacy.assume-stored",
+        "people.tell-a-person-first",
+        "age.no-companion-chatbots"
+      ],
+      "customRules": [
+        "id5",
+        "id6"
+      ],
+      "aiSettings": [
+        "people.ai-crisis"
+      ],
+      "hours": [
+        {
+          "day": "Mon",
+          "on": true,
+          "start": "15:30",
+          "end": "19:00"
+        },
+        {
+          "day": "Tue",
+          "on": true,
+          "start": "15:30",
+          "end": "19:00"
+        },
+        {
+          "day": "Wed",
+          "on": true,
+          "start": "15:30",
+          "end": "19:00"
+        },
+        {
+          "day": "Thu",
+          "on": true,
+          "start": "15:30",
+          "end": "19:00"
+        },
+        {
+          "day": "Fri",
+          "on": true,
+          "start": "15:30",
+          "end": "20:00"
+        },
+        {
+          "day": "Sat",
+          "on": true,
+          "start": "09:00",
+          "end": "19:00"
+        },
+        {
+          "day": "Sun",
+          "on": true,
+          "start": "09:00",
+          "end": "19:00"
+        }
+      ]
+    },
+    {
+      "id": "id4",
+      "name": "Theo",
+      "band": "12–14",
+      "icon": "controller",
+      "agreed": true,
+      "rules": [
+        "balance.try-first",
+        "balance.boredom",
+        "think.starting-point",
+        "privacy.never-give",
+        "privacy.assume-stored",
+        "people.tell-a-person-first",
+        "age.no-companion-chatbots"
+      ],
+      "customRules": [
+        "id6"
+      ],
+      "aiSettings": [
+        "people.ai-crisis"
+      ],
+      "hours": [
+        {
+          "day": "Mon",
+          "on": false,
+          "start": "09:00",
+          "end": "20:00"
+        },
+        {
+          "day": "Tue",
+          "on": false,
+          "start": "09:00",
+          "end": "20:00"
+        },
+        {
+          "day": "Wed",
+          "on": false,
+          "start": "09:00",
+          "end": "20:00"
+        },
+        {
+          "day": "Thu",
+          "on": false,
+          "start": "09:00",
+          "end": "20:00"
+        },
+        {
+          "day": "Fri",
+          "on": false,
+          "start": "09:00",
+          "end": "20:00"
+        },
+        {
+          "day": "Sat",
+          "on": true,
+          "start": "09:00",
+          "end": "20:00"
+        },
+        {
+          "day": "Sun",
+          "on": true,
+          "start": "09:00",
+          "end": "20:00"
+        }
+      ]
+    }
+  ],
+  "priorities": [
+    {
+      "id": "balance",
+      "on": true,
+      "pickedBy": "parent"
+    },
+    {
+      "id": "think",
+      "on": true,
+      "pickedBy": "parent"
+    },
+    {
+      "id": "privacy",
+      "on": true,
+      "pickedBy": "parent"
+    },
+    {
+      "id": "together",
+      "on": false,
+      "pickedBy": null
+    },
+    {
+      "id": "talk",
+      "on": false,
+      "pickedBy": null
+    },
+    {
+      "id": "people",
+      "on": true,
+      "pickedBy": "parent"
+    },
+    {
+      "id": "real",
+      "on": false,
+      "pickedBy": null
+    },
+    {
+      "id": "age",
+      "on": true,
+      "pickedBy": "family"
+    }
+  ],
+  "aiSettings": [
+    {
+      "id": "balance.ai-hours",
+      "priority": "balance",
+      "pair": "balance.off-times-and-places",
+      "on": true
+    },
+    {
+      "id": "think.ai-say-unsure",
+      "priority": "think",
+      "pair": "think.starting-point",
+      "on": false
+    },
+    {
+      "id": "privacy.ai-keeps-settings",
+      "priority": "privacy",
+      "pair": "privacy.settings-together",
+      "on": true
+    },
+    {
+      "id": "people.ai-says-computer",
+      "priority": "people",
+      "pair": "people.say-so-out-loud",
+      "on": true
+    },
+    {
+      "id": "people.ai-crisis",
+      "priority": "people",
+      "pair": "people.tell-a-person-first",
+      "on": true
+    }
+  ],
+  "customRules": [
+    {
+      "id": "id5",
+      "priority": "balance",
+      "text": "No AI at Grandma's house on Sundays.",
+      "by": "parent",
+      "for": [
+        "id1",
+        "id3"
+      ]
+    },
+    {
+      "id": "id6",
+      "priority": "people",
+      "text": "Homework help happens at the kitchen table.",
+      "by": "family",
+      "for": [
+        "id1",
+        "id3",
+        "id4"
+      ]
+    }
+  ]
+}

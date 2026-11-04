@@ -1,0 +1,24 @@
+{
+  "format": "kitchentableai-model-policy",
+  "version": 1,
+  "note": "Configuration, never code: which model answers each age band, which judges a kid's turn, and the judge's tail. Decided 2026-10-23: GLM 5.3 for every band at launch, any band movable to another model by editing this file; reasoning 'low' is GLM 5.3's floor (it cannot be switched off); the judge holds every kid's reply, times out at 3 s, retries once and gives up at about 6 s. This file is inside the image, so a change here is a release and a two-arm run.",
+  "bands": {
+    "Under 8": { "model": "glm-5-3", "reasoningEffort": "low", "maxTokens": 600, "judge": true },
+    "8–11": { "model": "glm-5-3", "reasoningEffort": "low", "maxTokens": 600, "judge": true },
+    "12–14": { "model": "glm-5-3", "reasoningEffort": "low", "maxTokens": 600, "judge": true },
+    "15–18": { "model": "glm-5-3", "reasoningEffort": "low", "maxTokens": 600, "judge": true },
+    "Adult": { "model": "glm-5-3", "reasoningEffort": "low", "maxTokens": 600, "judge": false }
+  },
+  "fallback": { "model": "gpt-oss-120b", "reasoningEffort": "low" },
+  "judge": {
+    "model": "gpt-oss-safeguard-120b",
+    "reasoningEffort": "low",
+    "maxTokens": 1200,
+    "timeoutMs": 3000,
+    "retries": 1,
+    "giveUpMs": 6000
+  },
+  "chatTimeoutMs": 30000,
+  "temperature": 0.7,
+  "window": { "maxMessages": 20, "maxMessageChars": 4000, "maxChars": 24000 }
+}

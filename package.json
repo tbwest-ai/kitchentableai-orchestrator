@@ -1,7 +1,7 @@
 {
   "name": "kitchentableai-orchestrator",
-  "version": "0.1.0",
-  "description": "Go/no-go spike: a small orchestrator for KitchenTableAI that runs inside an attested Tinfoil container. No runtime dependencies.",
+  "version": "0.2.0",
+  "description": "The KitchenTableAI orchestrator: compiles a person's page from their Family AI Agreement, keeps the deterministic floor, holds a kid's reply for an independent judge, and signs label-only envelopes, inside an attested Tinfoil container. No runtime dependencies.",
   "license": "AGPL-3.0-only",
   "private": true,
   "type": "module",

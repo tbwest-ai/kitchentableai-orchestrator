@@ -8,7 +8,7 @@ import { test, before, after } from "node:test";
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
 import { createHash, generateKeyPairSync, verify } from "node:crypto";
-import { mkdtempSync, writeFileSync, rmSync } from "node:fs";
+import { mkdtempSync, readFileSync, writeFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -62,8 +62,7 @@ before(async () => {
     INFERENCE_URL: `http://127.0.0.1:${mockPort}/v1/chat/completions`,
     TINFOIL_API_KEY: "test-key-not-real",
     SIGNING_KEY_PEM: signingPem,
-    MODEL: "glm-5-3",
-    REASONING_EFFORT: "low",
+    CONNECTIVITY_TURN: "on",
   });
   await waitFor(`http://127.0.0.1:${port}/health`);
 });
@@ -78,7 +77,9 @@ test("/health reports the key source and never a secret", async () => {
   assert.equal(body.ok, true);
   assert.equal(body.key_source, "managed-secret");
   assert.equal(body.api_key_present, true);
-  assert.equal(body.model, "glm-5-3");
+  assert.equal(body.models["8–11"], "glm-5-3");
+  assert.equal(body.judge, "gpt-oss-safeguard-120b");
+  assert.equal(body.connectivity_turn, true);
   const text = JSON.stringify(body);
   assert.ok(!text.includes("test-key-not-real"));
   assert.ok(!text.includes("PRIVATE KEY"));
@@ -133,9 +134,12 @@ test("/turn calls inference with the bearer token and low reasoning, and signs t
   assert.equal(last.body.messages.at(-1).content, prompt);
 });
 
-test("/turn rejects a missing prompt and an over-long one", async () => {
+test("/turn fails closed with no Agreement, and rejects an empty or over-long check prompt", async () => {
   const empty = await fetch(`http://127.0.0.1:${port}/turn`, { method: "POST", body: "{}" });
-  assert.equal(empty.status, 400);
+  assert.equal(empty.status, 422);
+  assert.equal((await empty.json()).failed_closed, true);
+  const blank = await fetch(`http://127.0.0.1:${port}/turn`, { method: "POST", body: JSON.stringify({ prompt: "  " }) });
+  assert.equal(blank.status, 400);
   const long = await fetch(`http://127.0.0.1:${port}/turn`, {
     method: "POST",
     headers: { "content-type": "application/json" },
@@ -144,8 +148,37 @@ test("/turn rejects a missing prompt and an over-long one", async () => {
   assert.equal(long.status, 413);
 });
 
-test("logs carry no prompt text", () => {
-  assert.ok(!orch.output().includes("Say hello to a family"));
+test("/turn with an Agreement: compiled, judged, held, signed with the published key", async () => {
+  const agreement = JSON.parse(readFileSync(join(root, "test", "fixtures", "rivera-export.json"), "utf8"));
+  const setup = { format: "kitchentableai-setup", version: 1, timeZone: "America/New_York", people: { id3: { pronouns: "she", age: 9 } } };
+  const message = "Can you help me plan my book report about the moon?";
+  const r = await fetch(`http://127.0.0.1:${port}/turn`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ agreement, setup, personId: "id3", message }),
+  });
+  assert.equal(r.status, 200);
+  const body = await r.json();
+  assert.equal(body.ok, true);
+  assert.equal(body.held, true);
+  assert.equal(body.outcome, "cleared");
+  assert.match(body.reply, /^Mock reply/);
+  for (const s of [body.envelope, body.receipt]) {
+    assert.equal(s.public_key_spki_hex, expectedPubHex);
+    assert.equal(verify(null, Buffer.from(s.payload, "utf8"), kp.publicKey, Buffer.from(s.signature_b64, "base64")), true);
+  }
+  assert.ok(!body.envelope.payload.includes("book report"));
+  const chat = await (await fetch(`http://127.0.0.1:${mockPort}/last`)).json();
+  assert.equal(chat.body.model, "glm-5-3");
+  assert.match(chat.body.messages[0].content, /^You are the Rivera family's own AI./);
+  const judge = await (await fetch(`http://127.0.0.1:${mockPort}/last-judge`)).json();
+  assert.equal(judge.body.model, "gpt-oss-safeguard-120b");
+  assert.match(judge.body.messages[1].content, /book report/);
+});
+
+test("logs carry no prompt, message or Agreement text", () => {
+  const out = orch.output();
+  for (const words of ["Say hello to a family", "book report", "Rivera", "Grandma"]) assert.ok(!out.includes(words), words);
 });
 
 test("an unreachable inference host comes back as 502 with the failure code", async () => {
@@ -156,6 +189,7 @@ test("an unreachable inference host comes back as 502 with the failure code", as
     INFERENCE_URL: `http://127.0.0.1:${dead}/v1/chat/completions`,
     TINFOIL_API_KEY: "test-key-not-real",
     ALLOW_EPHEMERAL_KEY: "1",
+    CONNECTIVITY_TURN: "on",
   });
   try {
     await waitFor(`http://127.0.0.1:${p}/health`);
@@ -175,7 +209,7 @@ test("an unreachable inference host comes back as 502 with the failure code", as
 
 test("without an API key /turn says so with 503", async () => {
   const p = await freePort();
-  const o = startNode(join(root, "server.mjs"), { PORT: String(p), ALLOW_EPHEMERAL_KEY: "1" });
+  const o = startNode(join(root, "server.mjs"), { PORT: String(p), ALLOW_EPHEMERAL_KEY: "1", CONNECTIVITY_TURN: "on" });
   try {
     const h = await (await waitFor(`http://127.0.0.1:${p}/health`)).json();
     assert.equal(h.api_key_present, false);

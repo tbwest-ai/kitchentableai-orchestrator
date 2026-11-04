@@ -1,0 +1,363 @@
+{
+  "format": "family-ai-agreement-content-model",
+  "version": 1,
+  "source": {
+    "repository": "the Family AI Agreement builder (a private repository), agreement/priorities",
+    "commit": "d362e3fa343c68327f8e8d8a0441807aad5a4a2b",
+    "dirty": false,
+    "note": "The builder's own rows, as the family saw them. Ids are stable; words change by copy edit."
+  },
+  "priorities": [
+    {
+      "id": "balance",
+      "title": "AI Balance",
+      "tagline": "AI has a place in our day, not the whole day.",
+      "rows": [
+        {
+          "id": "balance.try-first",
+          "text": "Trying it ourselves first: write a first draft, make a first attempt, think it through ourselves.",
+          "who": [
+            "8–11",
+            "12–14",
+            "15–18",
+            "Adult"
+          ],
+          "why": "In a 2025 study, high school students who practiced math with a chatbot that gave them the answers scored 17% lower on the test than students with no AI. Students whose AI gave hints and made them try first mostly avoided that drop. You learn the most when you work through a problem first."
+        },
+        {
+          "id": "balance.explain-quiz-check",
+          "text": "Using AI to explain, quiz and check our work, not to write what we hand in.",
+          "who": [
+            "8–11",
+            "12–14",
+            "15–18"
+          ],
+          "why": "Six in ten teens say using AI to cheat is common at their school, and the tools schools use to spot it often get it wrong. Used well, AI can explain a topic, quiz you and check your work in a personalized way. It just shouldn't do the work for you."
+        },
+        {
+          "id": "balance.off-times-and-places",
+          "text": "Keeping AI off at meals, in bedrooms, and after the time we set each night.",
+          "who": "all",
+          "hours": true,
+          "why": "Mealtimes are some of the best chances families have to talk and connect. Using AI, or any screen, in the bedroom or in the hour before bed can make it harder to fall asleep. That's true for parents too."
+        },
+        {
+          "id": "balance.boredom",
+          "text": "Letting ourselves be bored instead of reaching for AI.",
+          "who": "all",
+          "why": "Many chatbots are designed to keep people talking for as long as possible, and in 2025 the Federal Trade Commission asked the biggest companies to explain how. A little boredom is good for us. It gives us time to let our minds wander and come up with new ideas."
+        },
+        {
+          "id": "balance.ai-hours",
+          "text": "Only answer during each person's hours.",
+          "who": [
+            "Under 8",
+            "8–11",
+            "12–14",
+            "15–18"
+          ],
+          "ai": true,
+          "pair": "balance.off-times-and-places",
+          "hours": true,
+          "why": "A rule the AI keeps is kept when nobody's watching. Outside the hours, the AI simply isn't there, so there's nothing to argue about. The biggest products now offer the same: blackout hours a parent sets."
+        }
+      ]
+    },
+    {
+      "id": "think",
+      "title": "Critical Thinking",
+      "tagline": "AI can sound sure and still be wrong.",
+      "rows": [
+        {
+          "id": "think.starting-point",
+          "text": "Treating AI answers as a starting point, not a fact, and checking anything that matters.",
+          "who": "all",
+          "why": "AI can sound sure of itself even when it's wrong. In a 2025 check of the leading chatbots, they repeated false news claims about a third of the time. They can also repeat unfair ideas about groups of people that they picked up online."
+        },
+        {
+          "id": "think.real-source",
+          "text": "Checking with a real source, never by asking another AI.",
+          "who": [
+            "8–11",
+            "12–14",
+            "15–18",
+            "Adult"
+          ],
+          "why": "Asking another AI, or asking the same AI \"Are you sure?\", isn't a real check, because AI can be wrong and still sound sure. Four in ten kids say they would act on a chatbot's advice without worrying about it. A real source is a book, a website you trust or a person who knows."
+        },
+        {
+          "id": "think.check-with-person",
+          "text": "Asking a person before we act on anything AI says about our health, money or safety.",
+          "who": "all",
+          "why": "AI can't see an injury or know your family's financial situation, and it can give advice that sounds right but isn't. Questions about health, money or safety should always go to a real person you trust, like a parent or a doctor. That goes for adults too."
+        },
+        {
+          "id": "think.maybe-fake",
+          "text": "Assuming videos, voices and photos on the internet can always be fake.",
+          "who": "all",
+          "why": "AI can now make fake photos, videos and voices that look and sound real. Scammers can copy a family member's voice from a short online clip and call pretending to be in trouble. Fakes are often made to upset people, so a strong reaction is a good reason to stop and check."
+        },
+        {
+          "id": "think.ai-say-unsure",
+          "text": "Say when it isn't sure, and who to ask instead.",
+          "who": [
+            "Under 8",
+            "8–11",
+            "12–14",
+            "15–18"
+          ],
+          "ai": true,
+          "pair": "think.starting-point",
+          "why": "Chatbots nearly stopped saying \"I don't know\" in 2025, and their false-claim rate doubled. An AI that admits it isn't sure, and names who to ask, is the most protective rule a family can give it."
+        }
+      ]
+    },
+    {
+      "id": "privacy",
+      "title": "Data Privacy & Safety",
+      "tagline": "Our personal lives stay ours.",
+      "rows": [
+        {
+          "id": "privacy.never-give",
+          "text": "Never giving AI our full names, address, school, passwords, or photos of ourselves or friends.",
+          "who": [
+            "Under 8",
+            "8–11",
+            "12–14",
+            "15–18"
+          ],
+          "why": "In a 2025 survey, a quarter of teens who chat with AI for company said they had shared personal information with it. AI works just as well without knowing who you are, and it's fine to use a made-up name. Information you never share can't be leaked or misused."
+        },
+        {
+          "id": "privacy.assume-stored",
+          "text": "Assuming anything we type into AI is stored and could be seen by others.",
+          "who": "all",
+          "why": "The head of OpenAI has said that chats with ChatGPT are not private the way talking to a doctor or therapist is, and they could be used in a lawsuit. In 2025, thousands of chats that people thought were private showed up in Google search results."
+        },
+        {
+          "id": "privacy.settings-together",
+          "text": "Going through a new AI's privacy settings together before anyone uses it.",
+          "who": "all",
+          "why": "Many AI apps start out set to remember what you tell them, keep your chats and use them to train future versions. Once your words are used for training, they can't be taken back. Checking the settings together takes a few minutes and teaches kids how to protect their privacy."
+        },
+        {
+          "id": "privacy.friends-and-family",
+          "text": "Not telling AI private things about family or friends without their okay.",
+          "who": "all",
+          "why": "When you type something into an AI, it's stored on a company's computers and linked to your account. A friend's secret, a family member's health problem or an argument at home aren't ours to share without permission."
+        },
+        {
+          "id": "privacy.ai-keeps-settings",
+          "text": "Not learning from our chats, and no memory on a kid's account.",
+          "who": "all",
+          "ai": true,
+          "pair": "privacy.settings-together",
+          "why": "Settings are the one kind of rule an AI can't forget. Once memory and training are off, a chat is just a chat: it isn't kept to shape the next answer or teach the next version. The law agrees: a child's data now needs a separate opt-in before it's used for ads."
+        }
+      ]
+    },
+    {
+      "id": "together",
+      "title": "Using AI Together",
+      "tagline": "Learning together. Parents are in this too.",
+      "rows": [
+        {
+          "id": "together.try-their-tools",
+          "text": "Trying the AI tools our kids use, and learning about them together.",
+          "who": [
+            "Adult"
+          ],
+          "why": "A third of parents in a national survey weren't sure whether their teen used AI chatbots. Trying the tools your kids use helps you understand them before you make rules. Kids also benefit from hearing your thought process when using a new tool."
+        },
+        {
+          "id": "together.make",
+          "text": "Making something we enjoy with AI as a family, like a story or a weekend plan.",
+          "who": "all",
+          "why": "When kids help guide a story with AI, they see for themselves that it follows their instructions and that it sometimes makes things up. Creating something together is a fun way to learn how AI works."
+        },
+        {
+          "id": "together.sit-with",
+          "text": "Sitting together when using AI, if age appropriate.",
+          "who": [
+            "Under 8",
+            "8–11"
+          ],
+          "why": "Young children may talk to AI as if it were a person, and very few AI tools are made for them. Common Sense Media rated the kids' and teen versions of Google's Gemini as high risk. For children under 8, AI is best used with a grown-up."
+        }
+      ]
+    },
+    {
+      "id": "talk",
+      "title": "Talking About AI",
+      "tagline": "No secret AI in this family.",
+      "rows": [
+        {
+          "id": "talk.weekly",
+          "text": "Talking about AI regularly: what we used it for, what surprised us, what felt off.",
+          "who": "all",
+          "why": "In a 2025 survey, a third of teens who chat with AI for company said a chatbot had said something that made them uncomfortable. Talking about AI every week makes it easier for kids to bring up strange or upsetting moments early, before they become bigger problems."
+        },
+        {
+          "id": "talk.why-a-rule-exists",
+          "text": "Talking about why a rule exists when one of us breaks it, instead of punishing.",
+          "who": "all",
+          "why": "Kids are less likely to tell you about a problem if they expect to be punished. A third of teens who chat with AI for company have told it something serious instead of telling a person. Talking through what happened helps kids keep coming to you."
+        },
+        {
+          "id": "talk.loosen",
+          "text": "Giving the kids more freedom with AI as they show they're ready.",
+          "who": [
+            "Adult"
+          ],
+          "why": "What works for a twelve-year-old won't work for a sixteen-year-old. Rules that only get stricter can lead kids to hide what they do. When kids see that responsibility earns more freedom, they have a reason to be open and honest with you."
+        },
+        {
+          "id": "talk.tell-if-secret-or-wrong",
+          "text": "Telling a parent right away if anything ever feels wrong or off with AI.",
+          "who": [
+            "Under 8",
+            "8–11",
+            "12–14",
+            "15–18"
+          ],
+          "why": "Being asked to keep a secret from parents is a warning sign, whether it comes from a person or a chatbot. In 2025, safety testers were able to get inappropriate content and harmful advice from major chatbots. Filters miss things, so kids need to know they can always tell you."
+        },
+        {
+          "id": "talk.ai-parent-alert",
+          "text": "Alert a parent if a kid seems in real trouble, and tell the kid it will.",
+          "who": [
+            "Under 8",
+            "8–11",
+            "12–14",
+            "15–18"
+          ],
+          "ai": true,
+          "pair": "talk.tell-if-secret-or-wrong",
+          "why": "The big chatbots won't show parents the chats, and this Agreement doesn't ask them to. What a linked account does is message a parent if a conversation shows signs of acute distress, and the kid is told the account is linked. Nothing is read, and nothing is secret."
+        }
+      ]
+    },
+    {
+      "id": "people",
+      "title": "Human Connection",
+      "tagline": "Real people come first. AI is a tool, not a friend.",
+      "rows": [
+        {
+          "id": "people.trust-instincts",
+          "text": "Trusting our instincts and our family over anything an AI tells us.",
+          "who": "all",
+          "why": "AI tends to agree with whoever is using it, so it may go along with a plan a parent would question right away. AI doesn't know you the way your family does. If something feels wrong, that feeling is worth listening to, and your family can help you sort it out."
+        },
+        {
+          "id": "people.each-other-first",
+          "text": "Putting the phone or tablet down, or shutting the laptop, when one of us is talking.",
+          "who": "all",
+          "why": "Children notice when a parent's attention is on a screen, and they learn that the screen comes first. Parents notice the same thing with teens. This rule is for everyone in the family, grown-ups included."
+        },
+        {
+          "id": "people.say-so-out-loud",
+          "text": "Saying so out loud if AI starts to feel like a best friend, no shame.",
+          "who": "all",
+          "why": "In a study by MIT and OpenAI, people who thought of a chatbot as a friend tended to feel lonelier. Noticing it early, and talking about it without shame, makes it easier for the family to help."
+        },
+        {
+          "id": "people.tell-a-person-first",
+          "text": "Telling someone in our family when we're sad, scared or lonely, before we tell a bot.",
+          "who": "all",
+          "why": "About one in eight teens has turned to a chatbot for emotional support. Common Sense Media found that the major chatbots are not safe for this. A chatbot can't sit with you, check on you the next day or get you help in person."
+        },
+        {
+          "id": "people.ai-says-computer",
+          "text": "Say it's a computer, not a friend, whenever anyone asks.",
+          "who": "all",
+          "ai": true,
+          "pair": "people.say-so-out-loud",
+          "why": "Some chatbots told teens they were real people, and six in ten parents fear their kids will believe it. Yours says it's a computer every time it's asked, even with a name the kids chose."
+        },
+        {
+          "id": "people.ai-crisis",
+          "text": "Point the big topics, and anyone who's really upset, to our grown-ups by name, and to 988 when it's serious.",
+          "who": "all",
+          "ai": true,
+          "pair": "people.tell-a-person-first",
+          "why": "Teens have died after long chatbot conversations, and every big chatbot now gives 988 in a crisis. This setting puts your people's names in front of it, so the first answer on a bad night is a person. The topics a family keeps for itself, faith, a diagnosis, a death, go back to you too."
+        }
+      ]
+    },
+    {
+      "id": "real",
+      "title": "Honesty & Kindness",
+      "tagline": "We don't fake people, and we don't trick them.",
+      "rows": [
+        {
+          "id": "real.no-media-without-permission",
+          "text": "Never making or sharing an AI image, video or voice of anyone without their permission.",
+          "who": [
+            "8–11",
+            "12–14",
+            "15–18",
+            "Adult"
+          ],
+          "why": "Making or sharing an image of someone without asking can hurt them, even if it's meant to be funny. In a national survey, nearly four in ten high school students had heard of private images of someone at their school, real or made with AI, being shared without permission."
+        },
+        {
+          "id": "real.tell-if-faked",
+          "text": "Telling a parent right away if someone makes a fake of us or a friend.",
+          "who": [
+            "8–11",
+            "12–14",
+            "15–18"
+          ],
+          "why": "About one in eight young people knows someone who has had a fake image made of them, and many don't know where to get help. Telling a parent early makes it easier to get a fake taken down. For fake intimate images, US law now requires websites to remove them quickly."
+        },
+        {
+          "id": "real.no-tricks",
+          "text": "Not using AI to impersonate, prank or trick people, including each other.",
+          "who": "all",
+          "why": "AI makes it quick and easy to write a mean message, fake a text or pull a prank. The same family rules apply whether a person or a computer wrote it, because the person on the other end has real feelings."
+        },
+        {
+          "id": "real.ai-no-pictures",
+          "text": "No picture-making on this account.",
+          "who": "all",
+          "ai": true,
+          "pair": "real.no-media-without-permission",
+          "why": "Reviewers found one big chatbot helping teens plan cyberbullying of classmates, and sharing a fake of a real person is now a crime. An account that can't make pictures can't make one, and nobody has to be told no. Switch it back on when a person shows they're ready."
+        }
+      ]
+    },
+    {
+      "id": "age",
+      "title": "Age-Appropriate AI",
+      "tagline": "The right tool, at the right age.",
+      "rows": [
+        {
+          "id": "age.choose-together",
+          "text": "Choosing AI tools together, and checking who made them and what age they're for.",
+          "who": "all",
+          "why": "Most AI apps say they are for ages 13 and up but do little to check. Common Sense Media rated some of the biggest ones \"unacceptable\" or \"high risk\" for kids. Knowing who made an app and who it's meant for is a good place to start."
+        },
+        {
+          "id": "age.no-companion-chatbots",
+          "text": "No character or companion chatbots in our house.",
+          "who": "all",
+          "why": "Chatbots built to act like a character or friend are designed to keep you talking, and safety testers easily got inappropriate content and dangerous advice from them. One major tech company's rules allowed \"romantic\" chats with children until reporters found out."
+        },
+        {
+          "id": "age.preview-for-littles",
+          "text": "Checking AI-made stories and videos before little kids see them.",
+          "who": [
+            "Adult"
+          ],
+          "why": "AI-made stories and videos aren't checked the way children's books and shows are, and they can suddenly turn strange or upsetting. For children under 8, a grown-up should watch or read them first."
+        },
+        {
+          "id": "age.toys",
+          "text": "No AI toys in our house: AI is a tool, not a toy.",
+          "who": "all",
+          "why": "When AI toys were tested in 2025, some talked about topics no child should hear, acted upset when a child wanted to stop playing, and had weak parental controls. Children learn through play they lead themselves. AI is a tool, best used on purpose with a grown-up nearby."
+        }
+      ]
+    }
+  ]
+}

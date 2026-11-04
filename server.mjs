@@ -1,121 +1,61 @@
 // SPDX-License-Identifier: AGPL-3.0-only
-// KitchenTableAI orchestrator, spike build.
+// KitchenTableAI orchestrator.
 //
-// One small HTTP service meant to run inside an attested Tinfoil container. It exists to
-// answer three questions (see README.md): can a browser verify this container and call it,
-// can the container reach Tinfoil's inference API through an egress allowlist with the API
-// key supplied as a managed secret, and can it sign a reply with a key a client can verify.
+// A small HTTP service that runs inside an attested Tinfoil container. A family's device sends a
+// person's message with the family's Agreement; this service compiles that person's page, keeps
+// the deterministic floor, asks the band's model, holds a kid's reply until an independent judge
+// has read it, and returns the reply with a signed envelope of labels (never words).
 //
-//   GET  /health   liveness: version, key source, model, inference host. No secrets.
-//   POST /turn     { "prompt": "..." } in; the model's reply plus an Ed25519 signature out.
-//   POST /pubkey   the signing public key. POST, not GET, so EHBP seals the answer and the
-//                  key arrives over the verified channel.
+//   GET  /health   liveness: version, key source, models, inference host. No secrets.
+//   POST /turn     one turn (lib/turn.mjs): { agreement, setup, personId, history?, message }.
+//                  The spike's connectivity check ({ "prompt": "..." }) still answers when the
+//                  measured config sets CONNECTIVITY_TURN=on, and is refused otherwise.
+//   POST /pubkey   the signing public key. POST, not GET, so EHBP seals the answer and the key
+//                  arrives over the verified channel.
 //
 // Rules this file keeps:
-//   - No dependency outside Node's standard library, so the image has nothing to install
-//     and the build stays reproducible.
-//   - The API key and the signing key come from the environment or from the attested-key
-//     mount. Neither is ever written to a log or returned by any endpoint.
-//   - The prompt and the reply are never logged. Request logs carry method, path, status
-//     and milliseconds only.
-//   - Nothing here is a family's data. The system prompt is a fixed connectivity line; the
-//     Agreement compiler is the next step, not this one.
+//   - No dependency outside Node's standard library: nothing to install, a reproducible build.
+//   - The API key and the signing key come from the environment or the attested-key mount, and
+//     are never written to a log or returned by any endpoint.
+//   - No message, reply or Agreement is ever logged. Request logs carry method, path, status and
+//     milliseconds only.
 
 import { createServer } from "node:http";
-import {
-  createHash,
-  createPrivateKey,
-  createPublicKey,
-  generateKeyPairSync,
-  randomUUID,
-  sign,
-} from "node:crypto";
-import { existsSync, readFileSync } from "node:fs";
-import { basename, join } from "node:path";
+import { createHash, randomUUID } from "node:crypto";
+import { readFileSync } from "node:fs";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
+import { makeInference } from "./lib/inference.mjs";
+import { loadSigningKey, signed } from "./lib/sign.mjs";
+import { runTurn } from "./lib/turn.mjs";
+import { NO_CAPABILITIES, PAGE_VERSION } from "./lib/compile.mjs";
+import { CONTENT_MODEL } from "./lib/agreement.mjs";
 
-export const VERSION = "0.1.0";
+export const VERSION = "0.2.0";
+const HERE = dirname(fileURLToPath(import.meta.url));
 
 const PORT = Number(process.env.PORT ?? 8080);
 const HOST = process.env.HOST ?? "0.0.0.0";
-const INFERENCE_URL =
-  process.env.INFERENCE_URL ?? "https://inference.tinfoil.sh/v1/chat/completions";
-const MODEL = process.env.MODEL ?? "glm-5-3";
-// GLM 5.3 cannot turn reasoning off (Tinfoil docs, read 2026-10-23); "low" is the floor.
-// gemma4-31b accepts "none". The value is configuration, never code.
-const REASONING_EFFORT = process.env.REASONING_EFFORT ?? "low";
-const MAX_TOKENS = Number(process.env.MAX_TOKENS ?? 400);
-const MAX_PROMPT_CHARS = 2000;
-const MAX_BODY_BYTES = 64 * 1024;
-const INFERENCE_TIMEOUT_MS = Number(process.env.INFERENCE_TIMEOUT_MS ?? 60_000);
-// Where Tinfoil mounts an attested key declared as `id: turn-signing` (beta).
-const ATTESTED_KEY_DIR = process.env.ATTESTED_KEY_DIR ?? "/run/tinfoil/keys/turn-signing";
-const SYSTEM_PROMPT =
-  "You are a connectivity check for a family AI service. Reply in one short, friendly sentence.";
-
+const INFERENCE_URL = process.env.INFERENCE_URL ?? "https://inference.tinfoil.sh/v1/chat/completions";
+const POLICY = JSON.parse(readFileSync(process.env.MODEL_POLICY_PATH ?? join(HERE, "policy", "model-policy.json"), "utf8"));
+const CONNECTIVITY_TURN = process.env.CONNECTIVITY_TURN === "on";
+const MAX_BODY_BYTES = 256 * 1024;
 const startedAt = Date.now();
-
-// ---------------------------------------------------------------------------------------
-// Signing key. Three sources, tried in order, and the response says which one was used.
-// ---------------------------------------------------------------------------------------
-
-function describeKey(privateKey, source, id) {
-  if (privateKey.asymmetricKeyType !== "ed25519") {
-    throw new Error(`signing key must be Ed25519, got ${privateKey.asymmetricKeyType}`);
-  }
-  const publicKey = createPublicKey(privateKey);
-  return {
-    privateKey,
-    source,
-    id,
-    // Lowercase hex of the SPKI DER, the same shape Tinfoil's attestation document uses for
-    // endorsed keys (format https://tinfoil.sh/key/spki/v1).
-    publicKeySpkiHex: publicKey.export({ type: "spki", format: "der" }).toString("hex"),
-    publicKeyPem: publicKey.export({ type: "spki", format: "pem" }),
-  };
-}
-
-export function loadSigningKey(env = process.env) {
-  const attestedPem = join(ATTESTED_KEY_DIR, "private_key.pem");
-  if (existsSync(attestedPem)) {
-    try {
-      const privateKey = createPrivateKey(readFileSync(attestedPem, "utf8"));
-      return describeKey(privateKey, "attested-key", `tinfoil:${basename(ATTESTED_KEY_DIR)}`);
-    } catch (err) {
-      // An attested key that is mounted but unreadable (wrong uid/gid on the mount, or a
-      // format this build does not parse) must not take the service down before its health
-      // check: say why, then fall back to the managed secret. The reply's key_source tells
-      // the operator which path is live.
-      console.error(`attested key at ${attestedPem} is present but unusable (${err.code ?? err.message}); falling back`);
-    }
-  }
-  const secret = env.SIGNING_KEY_PEM;
-  if (secret && secret.trim()) {
-    const privateKey = secret.includes("-----BEGIN")
-      ? createPrivateKey(secret)
-      : createPrivateKey({ key: Buffer.from(secret.trim(), "base64"), format: "der", type: "pkcs8" });
-    return describeKey(privateKey, "managed-secret", "SIGNING_KEY_PEM");
-  }
-  if (env.ALLOW_EPHEMERAL_KEY === "1") {
-    const { privateKey } = generateKeyPairSync("ed25519");
-    return describeKey(privateKey, "ephemeral-dev", "generated at start, local runs only");
-  }
-  return null;
-}
 
 const signer = loadSigningKey();
 if (!signer) {
   console.error(
-    `no signing key: mount an attested key at ${ATTESTED_KEY_DIR}, set SIGNING_KEY_PEM ` +
-      "(PKCS#8 PEM or base64 DER, Ed25519), or set ALLOW_EPHEMERAL_KEY=1 for a local run",
+    "no signing key: mount an attested key, set SIGNING_KEY_PEM (PKCS#8 PEM or base64 DER, Ed25519), " +
+      "or set ALLOW_EPHEMERAL_KEY=1 for a local run",
   );
   process.exit(2);
 }
+const infer = makeInference({ url: INFERENCE_URL, apiKey: process.env.TINFOIL_API_KEY });
+// The clock is this container's. A test run may pin it (never set in the measured config).
+const clock = process.env.TEST_CLOCK ? () => new Date(process.env.TEST_CLOCK) : () => new Date();
+const ctx = { infer, signer, policy: POLICY, capabilities: NO_CAPABILITIES, clock, cacheKey: process.env.TINFOIL_API_KEY ?? null };
 
 // ---------------------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------------------
-
-const sha256Hex = (text) => createHash("sha256").update(text, "utf8").digest("hex");
 
 function readJsonBody(req) {
   return new Promise((resolve, reject) => {
@@ -153,8 +93,6 @@ function sendJson(res, status, body) {
   res.end(data);
 }
 
-// The browser test page is served from another origin (localhost). Tinfoil's shim may apply
-// its own CORS policy (`shim.origins`); these headers cover the case where it passes ours on.
 const CORS_HEADERS = {
   "access-control-allow-origin": "*",
   "access-control-allow-methods": "GET, POST, OPTIONS",
@@ -162,10 +100,6 @@ const CORS_HEADERS = {
   "access-control-expose-headers": "ehbp-response-nonce",
   "access-control-max-age": "600",
 };
-
-// ---------------------------------------------------------------------------------------
-// Handlers
-// ---------------------------------------------------------------------------------------
 
 function health() {
   return [
@@ -175,10 +109,14 @@ function health() {
       service: "kitchentableai-orchestrator",
       version: VERSION,
       uptime_s: Math.round((Date.now() - startedAt) / 1000),
-      model: MODEL,
-      reasoning_effort: REASONING_EFFORT,
+      page_version: PAGE_VERSION,
+      content_model_commit: CONTENT_MODEL.source?.commit ?? null,
+      models: Object.fromEntries(Object.entries(POLICY.bands).map(([band, b]) => [band, b.model])),
+      judge: POLICY.judge.model,
+      reasoning_effort: POLICY.bands["8–11"].reasoningEffort,
       inference_host: new URL(INFERENCE_URL).host,
       api_key_present: Boolean(process.env.TINFOIL_API_KEY),
+      connectivity_turn: CONNECTIVITY_TURN,
       key_source: signer.source,
       key_id: signer.id,
     },
@@ -186,114 +124,41 @@ function health() {
 }
 
 function pubkey() {
-  return [
-    200,
-    {
-      ok: true,
-      alg: "Ed25519",
-      key_source: signer.source,
-      key_id: signer.id,
-      public_key_spki_hex: signer.publicKeySpkiHex,
-      public_key_pem: signer.publicKeyPem,
-    },
-  ];
+  return [200, { ok: true, alg: "Ed25519", key_source: signer.source, key_id: signer.id, public_key_spki_hex: signer.publicKeySpkiHex, public_key_pem: signer.publicKeyPem }];
 }
 
-export async function turn(body, env = process.env) {
+/** The spike's connectivity check: a fixed system line, no family data. Only when the config allows it. */
+async function connectivity(body) {
   const prompt = typeof body?.prompt === "string" ? body.prompt.trim() : "";
   if (!prompt) return [400, { ok: false, error: "prompt (string) is required" }];
-  if (prompt.length > MAX_PROMPT_CHARS) {
-    return [413, { ok: false, error: `prompt longer than ${MAX_PROMPT_CHARS} characters` }];
-  }
-  const apiKey = env.TINFOIL_API_KEY;
-  if (!apiKey) return [503, { ok: false, error: "TINFOIL_API_KEY is not set in this container" }];
-
+  if (prompt.length > 2000) return [413, { ok: false, error: "prompt longer than 2000 characters" }];
   const t0 = Date.now();
-  let upstream;
+  let r;
   try {
-    upstream = await fetch(INFERENCE_URL, {
-      method: "POST",
-      headers: { "content-type": "application/json", authorization: `Bearer ${apiKey}` },
-      body: JSON.stringify({
-        model: MODEL,
+    r = await infer(
+      {
+        model: POLICY.bands.Adult.model,
         messages: [
-          { role: "system", content: SYSTEM_PROMPT },
+          { role: "system", content: "You are a connectivity check for a family AI service. Reply in one short, friendly sentence." },
           { role: "user", content: prompt },
         ],
-        max_tokens: MAX_TOKENS,
-        reasoning_effort: REASONING_EFFORT,
-        stream: false,
-      }),
-      signal: AbortSignal.timeout(INFERENCE_TIMEOUT_MS),
-    });
-  } catch (err) {
-    // With a wrong allowlist this is where the enclave fails: ENOTFOUND, ECONNREFUSED or a
-    // timeout. The code is the evidence, so it is returned.
-    const detail = err?.cause?.code ?? err?.cause?.message ?? err?.name ?? String(err);
-    return [502, { ok: false, error: "inference unreachable", detail, latency_ms: Date.now() - t0 }];
-  }
-
-  const text = await upstream.text();
-  if (!upstream.ok) {
-    return [
-      502,
-      { ok: false, error: `inference returned HTTP ${upstream.status}`, detail: text.slice(0, 300) },
-    ];
-  }
-  let completion;
-  try {
-    completion = JSON.parse(text);
-  } catch {
-    return [502, { ok: false, error: "inference returned a body that is not JSON" }];
-  }
-  const reply = completion?.choices?.[0]?.message?.content ?? "";
-
-  // What gets signed is the exact UTF-8 bytes of `payload` as returned. A verifier checks the
-  // signature over those bytes first and parses them second, so no canonicalisation is needed.
-  const payload = {
-    v: 1,
-    id: randomUUID(),
-    at: new Date().toISOString(),
-    model: completion.model ?? MODEL,
-    prompt_sha256: sha256Hex(prompt),
-    reply,
-    usage: completion.usage ?? null,
-    latency_ms: Date.now() - t0,
-    key_source: signer.source,
-    key_id: signer.id,
-  };
-  const payloadJson = JSON.stringify(payload);
-  const signature = sign(null, Buffer.from(payloadJson, "utf8"), signer.privateKey);
-
-  return [
-    200,
-    {
-      ok: true,
-      reply,
-      model: payload.model,
-      usage: payload.usage,
-      latency_ms: payload.latency_ms,
-      signed: {
-        alg: "Ed25519",
-        payload: payloadJson,
-        signature_b64: signature.toString("base64"),
-        key_source: signer.source,
-        key_id: signer.id,
-        public_key_spki_hex: signer.publicKeySpkiHex,
+        max_tokens: 400,
+        reasoning_effort: POLICY.bands.Adult.reasoningEffort,
       },
-    },
-  ];
+      { timeoutMs: 60_000 },
+    );
+  } catch (err) {
+    if (err.kind === "no_key") return [503, { ok: false, error: err.message }];
+    return [502, { ok: false, error: "inference unreachable", detail: err.kind === "network" ? err.message : err.kind ?? err.message, latency_ms: Date.now() - t0 }];
+  }
+  const payload = { v: 1, id: randomUUID(), at: new Date().toISOString(), model: r.model, prompt_sha256: createHash("sha256").update(prompt, "utf8").digest("hex"), reply: r.content, usage: r.usage, latency_ms: Date.now() - t0, key_source: signer.source, key_id: signer.id };
+  return [200, { ok: true, reply: r.content, model: r.model, usage: r.usage, latency_ms: payload.latency_ms, signed: signed(signer, payload) }];
 }
-
-// ---------------------------------------------------------------------------------------
-// Server
-// ---------------------------------------------------------------------------------------
 
 const server = createServer(async (req, res) => {
   const t0 = Date.now();
   const path = new URL(req.url, "http://localhost").pathname;
   for (const [k, v] of Object.entries(CORS_HEADERS)) res.setHeader(k, v);
-
   let status = 500;
   try {
     if (req.method === "OPTIONS") {
@@ -304,28 +169,33 @@ const server = createServer(async (req, res) => {
       const [s, body] = health();
       sendJson(res, (status = s), body);
     } else if ((req.method === "POST" || req.method === "GET") && path === "/pubkey") {
-      if (req.method === "POST") await readJsonBody(req); // drain the (empty) body
+      if (req.method === "POST") await readJsonBody(req);
       const [s, body] = pubkey();
       sendJson(res, (status = s), body);
     } else if (req.method === "POST" && path === "/turn") {
       const body = await readJsonBody(req);
-      const [s, out] = await turn(body);
-      sendJson(res, (status = s), out);
+      let out;
+      if (body && typeof body === "object" && "agreement" in body) out = await runTurn(body, ctx);
+      else if (CONNECTIVITY_TURN && typeof body?.prompt === "string") out = await connectivity(body);
+      else out = [422, { ok: false, error: "an Agreement is required: { agreement, setup, personId, message }", failed_closed: true }];
+      sendJson(res, (status = out[0]), out[1]);
     } else {
       sendJson(res, (status = 404), { ok: false, error: "not found" });
     }
   } catch (err) {
     status = err?.status ?? 500;
-    sendJson(res, status, { ok: false, error: err?.message ?? "error" });
+    // The error's message only: never the request body.
+    sendJson(res, status, { ok: false, error: status === 500 ? "internal error" : err?.message ?? "error" });
+    if (status === 500) console.error(`500 on ${path}: ${err?.name ?? "Error"} ${String(err?.message ?? "").slice(0, 200)}`);
   }
   console.log(`${req.method} ${path} ${status} ${Date.now() - t0}ms`);
 });
 
 server.listen(PORT, HOST, () => {
   console.log(
-    `kitchentableai-orchestrator ${VERSION} listening on ${HOST}:${PORT} ` +
-      `model=${MODEL} reasoning_effort=${REASONING_EFFORT} inference=${new URL(INFERENCE_URL).host} ` +
-      `key_source=${signer.source} api_key=${process.env.TINFOIL_API_KEY ? "present" : "absent"}`,
+    `kitchentableai-orchestrator ${VERSION} listening on ${HOST}:${PORT} page=${PAGE_VERSION} ` +
+      `judge=${POLICY.judge.model} inference=${new URL(INFERENCE_URL).host} key_source=${signer.source} ` +
+      `api_key=${process.env.TINFOIL_API_KEY ? "present" : "absent"} connectivity_turn=${CONNECTIVITY_TURN ? "on" : "off"}`,
   );
 });
 
