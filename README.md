@@ -14,6 +14,10 @@ in order, what it returns and what it does not do yet is in [TURN.md](TURN.md). 
 judge and its tail), `turn.mjs` (the order), `sign.mjs` and `seal.mjs`. Which model answers
 each age band is configuration, in `policy/model-policy.json`.
 
+**v0.3.0 adds a test chat for the founder's own family** (`web/chat.html`; TURN.md says what it
+does) and `POST /page`, the compiled page on request. The spike's raw connectivity check is off:
+every model call now goes through the Agreement, the floor and the judge.
+
 The rest of this README is the go/no-go spike (v0.1.0 to v0.1.2, 2026-10-23 to 2026-11-02), kept
 for the record: all three of its exit tests passed on a real instance, and the steps below are how
 a release still reaches it.
@@ -59,19 +63,21 @@ lab/cloud-orchestrator/
 │   ├── tinfoil-release.yml      tags a version and dispatches the publish workflow
 │   └── tinfoil-release-publish.yml  measures, attests and publishes (measure-image-action)
 ├── scripts/
-│   ├── dev.mjs                  local run: mock inference + service + test page
+│   ├── dev.mjs                  local run: mock inference + service + both pages
 │   ├── build-image.mjs          builds twice with BuildKit and compares the digests
 │   └── make-signing-key.mjs     makes the Ed25519 key for the managed-secret fallback
 ├── test/
-│   ├── orchestrator.test.mjs    the HTTP contract: health, pubkey, a turn, the connectivity check, key sources
-│   ├── compile.test.mjs, floor.test.mjs, turn.test.mjs   the page, each floor item, whole turns
+│   ├── orchestrator.test.mjs    the HTTP contract: health, pubkey, a turn, the page, the connectivity check, key sources
+│   ├── compile.test.mjs, floor.test.mjs, turn.test.mjs, page.test.mjs   the page, each floor item, whole turns, /page
 │   ├── helpers.mjs, fixtures/   the builder's own Rivera export, a setup, a scripted model and judge
 │   └── mock-inference.mjs       a stand-in for inference.tinfoil.sh (local only)
 └── web/
-    ├── index.html, app.js       the browser test page (runs the `tinfoil` SDK's verifier)
+    ├── index.html, app.js       the browser check page (runs the `tinfoil` SDK's verifier)
+    ├── chat.html, chat.js       the test chat for the founder's own family (v0.3.0)
+    ├── common.js                what both pages share: the sample family, signature checks
     ├── vendor/entry.mjs         what the page bundle exports (SecureClient); the bundle itself is
     │                            built by `npm run bundle-web` and not committed
-    └── serve.mjs                serves the page on http://localhost:8097
+    └── serve.mjs                serves the pages on http://localhost:8097, and the sample family
 ```
 
 The public repository is this folder's contents at its root. Its name must not contain the
@@ -83,14 +89,14 @@ used throughout this README.
 ```bash
 cd lab/cloud-orchestrator
 npm install     # once: the two dev dependencies that build the page bundle
-npm test        # 46 tests: the HTTP contract, the page, every floor item, whole turns
+npm test        # 50 tests: the HTTP contract, the page, every floor item, whole turns
 npm run dev     # bundles the page, then: mock inference on 8081, the service on 8080,
-                # the page on http://localhost:8097
+                # the pages on http://localhost:8097 (the check) and /chat.html (the test chat)
 ```
 
-On the page, "Local, unverified" talks to the local service with plain `fetch` (no
-attestation, an ephemeral key); "Send one turn" shows the signed reply and checks the
-signature. "Control: verify websearch.tinfoil.sh" runs the real verifier in your browser
+On either page, "Local, unverified" talks to the local service with plain `fetch` (no
+attestation, an ephemeral key). On the check page, "Send one turn" sends one message as Maya of
+the synthetic sample family and checks both signatures. "Control: verify websearch.tinfoil.sh" runs the real verifier in your browser
 against one of Tinfoil's own containers, built with the same release workflow as ours. That
 proves the browser side of exit test 1 before anything is deployed: on 2026-10-23, from the
 desktop app's Chromium, it verified in 799 ms with all five steps green and one host

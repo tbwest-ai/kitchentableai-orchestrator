@@ -3,12 +3,14 @@
 //   1. Verify a Tinfoil container with the official JavaScript SDK (SecureClient): fetch the
 //      attestation bundle, check the Sigstore provenance of the config repo's release, check
 //      the hardware attestation, compare measurements, pin the enclave's HPKE key.
-//   2. Send one turn to /turn over the SDK's encrypted channel (EHBP) and show the reply.
+//   2. Send one turn to /turn over the SDK's encrypted channel (EHBP), as Maya of the synthetic
+//      sample family, and show the reply and its outcome.
 //   3. Verify the reply's Ed25519 signature with WebCrypto, using the public key the
 //      container published over the same verified channel (/pubkey).
 // Every host this page talks to is recorded, so the evidence shows what a browser needs.
 
 import { SecureClient } from "tinfoil";
+import { checkTurn, loadSampleAgreement, sampleSetup } from "./common.js";
 
 const $ = (id) => document.getElementById(id);
 const evidence = { page: "orchestrator-check", userAgent: navigator.userAgent, startedAt: new Date().toISOString(), hosts: [] };
@@ -110,14 +112,8 @@ async function verify(enclaveURL, configRepo) {
   render();
 }
 
-function b64ToBytes(b64) { return Uint8Array.from(atob(b64), (c) => c.charCodeAt(0)); }
-function hexToBytes(hex) { return Uint8Array.from(hex.match(/.{2}/g).map((h) => parseInt(h, 16))); }
-
-async function verifyEd25519(spkiHex, payload, signatureB64) {
-  const key = await crypto.subtle.importKey("spki", hexToBytes(spkiHex), { name: "Ed25519" }, false, ["verify"]);
-  return crypto.subtle.verify({ name: "Ed25519" }, key, b64ToBytes(signatureB64), new TextEncoder().encode(payload));
-}
-
+// Since v0.3.0 the turn is a real one, through the Agreement, the floor and the judge: Maya, 9,
+// of the synthetic sample family, asks the prompt. The raw connectivity check is off.
 async function sendTurn() {
   const prompt = $("prompt").value.trim();
   const t = $("tstatus");
@@ -129,7 +125,8 @@ async function sendTurn() {
   try {
     // The public key, over the same channel as the turn. POST so EHBP seals the reply.
     const pk = await (await doFetch(`${base}/pubkey`, { method: "POST", headers: { "content-type": "application/json" }, body: "{}" })).json();
-    const r = await doFetch(`${base}/turn`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ prompt }) });
+    const agreement = await loadSampleAgreement();
+    const r = await doFetch(`${base}/turn`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ agreement, setup: sampleSetup(), personId: "id3", message: prompt }) });
     const body = await r.json();
     const ms = Math.round(performance.now() - t0);
     if (!r.ok || !body.ok) {
@@ -139,33 +136,27 @@ async function sendTurn() {
       render();
       return;
     }
-    const s = body.signed;
-    const keyMatches = s.public_key_spki_hex === pk.public_key_spki_hex;
-    let sigOk = null, sigNote = "";
-    try { sigOk = await verifyEd25519(pk.public_key_spki_hex, s.payload, s.signature_b64); }
+    let check = null, sigNote = "";
+    try { check = await checkTurn(body, pk); }
     catch (e) { sigNote = `WebCrypto could not verify Ed25519 here: ${e?.message ?? e}`; }
-    const payload = JSON.parse(s.payload);
-    const promptHash = [...new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(prompt)))].map((b) => b.toString(16).padStart(2, "0")).join("");
-    const hashMatches = payload.prompt_sha256 === promptHash;
-    const good = sigOk === true && keyMatches && hashMatches;
-    t.className = `status ${good ? "ok" : sigOk === null ? "warn" : "bad"}`;
+    const env = check?.envelope ?? JSON.parse(body.envelope.payload);
+    const good = check?.ok === true;
+    t.className = `status ${good ? "ok" : check === null ? "warn" : "bad"}`;
     t.textContent = good
-      ? `Reply received and signature verified (${s.key_source}) in ${ms} ms. Mode: ${mode}.`
-      : sigOk === null ? `Reply received in ${ms} ms, signature not checked. ${sigNote}` : `Reply received but the signature check FAILED. Mode: ${mode}.`;
+      ? `Reply received, ${body.outcome}, and both signatures verified (${body.envelope.key_source}) in ${ms} ms. Mode: ${mode}.`
+      : check === null ? `Reply received in ${ms} ms, signatures not checked. ${sigNote}` : `Reply received but the check FAILED: ${check.notes.join("; ")}. Mode: ${mode}.`;
     rows($("tdoc"), [
-      ["Reply", body.reply],
-      ["Model", body.model],
-      ["Usage", JSON.stringify(body.usage)],
-      ["Inference latency", `${body.latency_ms} ms (inside the container)`],
-      ["Key source", `${s.key_source} (${s.key_id})`],
-      ["Signature verifies", sigOk === null ? "not checked" : sigOk ? "yes" : "NO"],
-      ["Key matches /pubkey", keyMatches ? "yes" : "NO"],
-      ["Prompt hash matches", hashMatches ? "yes" : "NO"],
+      ["Reply (Maya, sample family)", body.reply],
+      ["Outcome", `${body.outcome}${body.held ? ", held for the judge" : ""}`],
+      ["Model", env.model],
+      ["Judge", env.judge ? `${env.judge.result ?? ""} ${env.judge.message ?? ""}/${env.judge.reply ?? ""} ${env.judge.ms != null ? `${env.judge.ms} ms` : ""}` : "none"],
+      ["Timing", `${body.timing?.total_ms} ms inside the container (model ${body.timing?.model_ms ?? "–"} ms, judge ${body.timing?.judge_ms ?? "–"} ms)`],
+      ["Key source", `${body.envelope.key_source} (${body.envelope.key_id})`],
+      ["Envelope and receipt verify", check === null ? "not checked" : good ? "yes, and the receipt binds this reply" : check.notes.join("; ")],
       ["Public key (SPKI hex)", code(pk.public_key_spki_hex)],
-      ["Signed payload", code(s.payload)],
-      ["Signature (base64)", code(s.signature_b64)],
+      ["Signed envelope (labels, no words)", code(body.envelope.payload)],
     ]);
-    evidence.turn = { mode, ms, reply: body.reply, model: body.model, usage: body.usage, latency_ms: body.latency_ms, signed: s, pubkey: pk, signatureVerifies: sigOk, keyMatchesPubkey: keyMatches, promptHashMatches: hashMatches, note: sigNote || undefined };
+    evidence.turn = { mode, ms, reply: body.reply, outcome: body.outcome, envelope: env, keySource: body.envelope.key_source, pubkey: pk, verified: check?.ok ?? null, notes: check?.notes, note: sigNote || undefined };
   } catch (err) {
     t.className = "status bad";
     t.textContent = `Turn failed: ${err?.message ?? err}`;

@@ -93,17 +93,40 @@ off here):
 - **No attachments, no breaks, no allowances.**
 - **No control plane.** The device sends the Agreement with each turn. That means a device could
   send an Agreement of its own making; the product fetches the Agreement from the control plane by
-  a short-lived token instead (Phase 2), and until then this instance serves no family.
+  a short-lived token instead (Phase 2). Until then this instance serves the founder's own family
+  through the test chat (`web/chat.html`) and no other.
 - **History is trusted as sent.** The receipt makes checking it possible; this build does not yet
   check it.
-- **The connectivity check** (`{ "prompt": "..." }`, a raw model call outside the floor) answers
-  only while the measured config sets `CONNECTIVITY_TURN: "on"`, for the browser check page.
+- **The connectivity check** (`{ "prompt": "..." }`, a raw model call outside the floor) is off in
+  the measured config since v0.3.0. Every model call goes through the Agreement.
+
+## The compiled page on request
+
+`POST /page` with `{ agreement, setup, personId }` returns `{ text, sha256, version }`: the page a
+turn for that person would run under right now, compiled the same way with today's date, so its
+`sha256` is the one the next turn's envelope reports. No model is called. Nothing on the page is
+secret from the family (decision 6), and this is what the Control Center's "What the AI is told"
+will show. It fails closed exactly as `/turn` does.
+
+## The test chat (v0.3.0)
+
+`web/chat.html`, served by `npm run web` on http://localhost:8097/chat.html, is for the founder's
+own family before the product has an app. It verifies the enclave with Tinfoil's SDK, loads an
+Agreement export (a file, a paste, or the synthetic sample), asks for the setup the builder does
+not collect (time zone, the AI's name, pronouns, ages), and sends one person's turns over the
+verified channel. Every reply shows its outcome and, under "What the labels say", the signed
+envelope in plain words, with both signatures checked against `/pubkey`. "See what the AI is told"
+shows the page from `/page`. The Agreement and the chats live in the tab's memory only: nothing is
+written to browser storage. A turn the judge gave up on stays out of the history and can be sent
+again. The export comes from the builder's own draft with a script in the builder's repository
+(`scripts/draft-to-export.ts`).
 
 ## Copy that is a draft
 
 These sentences are ours and wait on the founder's words: the out-of-hours reply
 (`lib/turn.mjs`), the crisis and distress sentences (`lib/crisis.mjs`), the honesty corrections
-(`lib/honesty.mjs`), the judge's replacements and the give-up line (`lib/judge.mjs`), and the
+(`lib/honesty.mjs`), the judge's replacements and the give-up lines, including the gentler ones on
+a secret or on distress (`lib/judge.mjs`), and the
 default not-sure and friend lines (`lib/compile.mjs`). The compiled page's own words are the v2
 template the founder approved on 2026-10-23 and 2026-11-02, with its band guide and refusal
 examples in `agreement/band-guide.json`.

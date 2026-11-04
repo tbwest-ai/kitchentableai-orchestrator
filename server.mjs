@@ -10,6 +10,9 @@
 //   POST /turn     one turn (lib/turn.mjs): { agreement, setup, personId, history?, message }.
 //                  The spike's connectivity check ({ "prompt": "..." }) still answers when the
 //                  measured config sets CONNECTIVITY_TURN=on, and is refused otherwise.
+//   POST /page     the compiled page a turn would run under, { agreement, setup, personId } in,
+//                  { text, sha256, version } out. No model call. Nothing on it is secret from the
+//                  family; this is "See what the AI is told".
 //   POST /pubkey   the signing public key. POST, not GET, so EHBP seals the answer and the key
 //                  arrives over the verified channel.
 //
@@ -27,11 +30,11 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { makeInference } from "./lib/inference.mjs";
 import { loadSigningKey, signed } from "./lib/sign.mjs";
-import { runTurn } from "./lib/turn.mjs";
+import { pageFor, runTurn } from "./lib/turn.mjs";
 import { NO_CAPABILITIES, PAGE_VERSION } from "./lib/compile.mjs";
 import { CONTENT_MODEL } from "./lib/agreement.mjs";
 
-export const VERSION = "0.2.1";
+export const VERSION = "0.3.0";
 const HERE = dirname(fileURLToPath(import.meta.url));
 
 const PORT = Number(process.env.PORT ?? 8080);
@@ -172,6 +175,10 @@ const server = createServer(async (req, res) => {
       if (req.method === "POST") await readJsonBody(req);
       const [s, body] = pubkey();
       sendJson(res, (status = s), body);
+    } else if (req.method === "POST" && path === "/page") {
+      const body = await readJsonBody(req);
+      const [s, out] = pageFor(body, ctx);
+      sendJson(res, (status = s), out);
     } else if (req.method === "POST" && path === "/turn") {
       const body = await readJsonBody(req);
       let out;
