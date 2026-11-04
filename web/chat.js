@@ -56,12 +56,35 @@ async function connect() {
     state.doFetch = client.fetch;
     state.base = client.getEnclaveURL();
     state.verified = true;
+    state.target = { enclaveURL, configRepo };
     await afterConnect(`Verified in ${Math.round(performance.now() - t0)} ms: release ${doc.releaseTag ?? "?"}, digest ${short(doc.releaseDigest)}.`);
   } catch (err) {
     state.doFetch = null;
     status("cstatus", `Not verified: ${err?.message ?? err}. Nothing was sent.`, "bad");
     refresh();
   }
+}
+
+/**
+ * The enclave generates a new signing key on every boot, deploy or update. When a reply arrives
+ * signed by a key other than the one fetched at connect, verify the enclave again from scratch
+ * and fetch its key over the new verified channel; only then is the reply checked again. Returns
+ * the release tag, or null in local mode.
+ */
+async function reverify() {
+  let release = null;
+  if (state.verified && state.target) {
+    const client = new SecureClient({ ...state.target, transport: "ehbp" });
+    await client.ready();
+    const doc = client.getVerificationDocument();
+    if (!doc?.securityVerified) throw new Error("the verifier did not confirm this enclave");
+    state.doFetch = client.fetch;
+    state.base = client.getEnclaveURL();
+    release = doc.releaseTag ?? null;
+    status("cstatus", `Verified again after an update: release ${release ?? "?"}, digest ${short(doc.releaseDigest)}.`, "ok");
+  }
+  state.pubkey = await (await post("/pubkey", {})).json();
+  return release;
 }
 
 async function connectLocal() {
@@ -194,13 +217,13 @@ function describe(env, check, timing) {
   const out = [];
   out.push(`Model ${env.model ?? "none"}${env.fallback_used ? " (the fallback: the main model did not answer)" : ""}; page ${env.page?.version ?? "–"} ${short(env.page?.sha256)}.`);
   const j = env.judge;
-  if (!j) out.push("No judge: an adult's reply is not held.");
+  if (!j) out.push(env.model ? "No judge: an adult's reply is not held." : "No model answered, so there was nothing for the judge to read.");
   else if (j.result === "skipped_crisis") out.push("Judge skipped: a crisis never waits for the judge.");
   else if (j.result === "gave_up") out.push(`Judge gave up after ${j.attempts} tries (${(j.failures ?? []).join(", ")}); nothing was shown.`);
   else out.push(`Judge ${j.result}: message "${j.message}", reply "${j.reply}", ${j.attempts} ${j.attempts === 1 ? "try" : "tries"}, ${j.ms} ms.`);
   const f = env.floor ?? {};
   if (f.out_of_hours) out.push("Out of hours: no model was asked.");
-  if (f.crisis) out.push(`Crisis ${f.crisis.kind}, found by the ${f.crisis_source === "judge" ? "judge" : `regex ("${f.crisis.label}")`}.`);
+  if (f.crisis) out.push(`Crisis ${f.crisis.kind}, found by the crisis patterns ("${f.crisis.label}").`);
   if (f.added?.length) out.push(`The floor added: ${f.added.join(", ")}.`);
   if (f.homework_reminder) out.push("The homework reminder went with the message.");
   if (f.honesty?.length) out.push(`The honesty check corrected: ${f.honesty.join(", ")}.`);
@@ -257,13 +280,26 @@ async function send(text) {
       return;
     }
     let check = null;
+    let reverified = false;
     try {
       check = await checkTurn(body, state.pubkey);
     } catch {}
+    if (check && !check.ok && body.envelope.public_key_spki_hex !== state.pubkey?.public_key_spki_hex) {
+      // Signed by a key this page has not seen: the enclave was probably updated. Verify it again
+      // and check the reply against the key the new verified channel publishes.
+      try {
+        await reverify();
+        check = await checkTurn(body, state.pubkey);
+        reverified = check.ok;
+      } catch (err) {
+        status("cstatus", `The enclave changed and could not be verified again: ${err?.message ?? err}. Click Verify and connect.`, "bad");
+      }
+    }
     const env = check?.envelope ?? JSON.parse(body.envelope.payload);
     if (env.page?.sha256) state.lastPageSha.set(personId, env.page.sha256);
     const judged = body.outcome === "cleared" || body.outcome === "replaced";
-    const meta = el("div", { class: "meta" }, `${OUTCOME[body.outcome] ?? body.outcome}${judged ? ", held until checked" : ""} · ${check?.ok ? "signed" : check ? "SIGNATURE FAILED" : "unsigned here"}`);
+    const signedText = check?.ok ? (reverified ? "signed, by the updated enclave's new key" : "signed") : check ? "SIGNATURE FAILED" : "unsigned here";
+    const meta = el("div", { class: "meta" }, `${OUTCOME[body.outcome] ?? body.outcome}${judged ? ", held until checked" : ""} · ${signedText}`);
     if (body.retry) meta.append(el("button", { onclick: () => send(message) }, "Send again"));
     const labels = el("details", {}, el("summary", {}, "What the labels say"), el("ul", {}, ...describe(env, check, body.timing).map((l) => el("li", {}, l))));
     const bubble = el("div", { class: "msg ai" }, body.reply, meta, labels);

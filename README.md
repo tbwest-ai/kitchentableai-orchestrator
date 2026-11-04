@@ -89,7 +89,7 @@ used throughout this README.
 ```bash
 cd lab/cloud-orchestrator
 npm install     # once: the two dev dependencies that build the page bundle
-npm test        # 50 tests: the HTTP contract, the page, every floor item, whole turns
+npm test        # 52 tests: the HTTP contract, the page, every floor item, whole turns
 npm run dev     # bundles the page, then: mock inference on 8081, the service on 8080,
                 # the pages on http://localhost:8097 (the check) and /chat.html (the test chat)
 ```
