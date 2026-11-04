@@ -1,18 +1,31 @@
-# KitchenTableAI orchestrator: the go/no-go spike
+# KitchenTableAI orchestrator
 
-A small HTTP service meant to run inside an attested [Tinfoil container](https://docs.tinfoil.sh/containers/overview),
-built to answer one question: **can our own orchestrator run in an enclave a family's browser
-can verify?** The decision it serves was taken on 2026-10-23: the attested orchestrator replaces
-the plan's relay, its source is published under AGPL-3.0, and if this spike fails the fallback
-is a launch with a client-built request for under-12s only.
+A small HTTP service that runs inside an attested [Tinfoil container](https://docs.tinfoil.sh/containers/overview).
+A family's device sends one person's message with the family's AI Agreement; the service compiles
+that person's page, keeps the deterministic floor around the model, holds a kid's reply until an
+independent judge has read it, and returns the reply with a signed envelope of labels, never
+words. Its source is published under AGPL-3.0 so anyone can check that claim against the image a
+browser verifies.
 
-This is a spike. It has no Agreement compiler, no family data, no control plane, no judge. It
-has `/health`, `/turn` (one prompt in, the model's reply plus a signature out) and `/pubkey`.
-What it does have is everything the three exit tests need, in the smallest shape that is
-also the right shape: no dependencies, a reproducible image, a measured config, and a
-browser page that runs Tinfoil's own verifier.
+**v0.2.0 is Phase 1's first slice: one turn, end to end, from a real Agreement.** What it does,
+in order, what it returns and what it does not do yet is in [TURN.md](TURN.md). The code is in
+`lib/`: `agreement.mjs` (the export and setup, failing closed), `compile.mjs` (the page, v2),
+`crisis.mjs`, `homework.mjs`, `honesty.mjs` and `hours.mjs` (the floor), `judge.mjs` (the
+judge and its tail), `turn.mjs` (the order), `sign.mjs` and `seal.mjs`. Which model answers
+each age band is configuration, in `policy/model-policy.json`.
 
-## The three exit tests
+The rest of this README is the go/no-go spike (v0.1.0 to v0.1.2, 2026-10-23 to 2026-11-02), kept
+for the record: all three of its exit tests passed on a real instance, and the steps below are how
+a release still reaches it.
+
+## The spike: can our own orchestrator run in an enclave a family's browser can verify?
+
+The decision it served was taken on 2026-10-23: the attested orchestrator replaces the plan's
+relay, and if the spike had failed the fallback was a launch with a client-built request for
+under-12s only. The spike had `/health`, `/turn` (one prompt in, the model's reply plus a
+signature out; in v0.2.0 that is the connectivity check) and `/pubkey`.
+
+### The three exit tests
 
 | # | Test | What passing looks like | Where it runs |
 |---|------|-------------------------|---------------|
@@ -30,11 +43,15 @@ so changing either is a config release, not a code change.
 
 ```
 lab/cloud-orchestrator/
-├── server.mjs                 the service: Node 24, standard library only, ~250 lines
+├── server.mjs                 the service: Node 24, standard library only
+├── TURN.md                    one turn: the request, the order, the envelope, what is not built yet
+├── lib/                       the compiler, the floor, the judge, the turn, signing and sealing
+├── agreement/                 snapshots of the builder's content model and the band guide
+├── policy/model-policy.json   which model answers each age band; the judge and its tail
 ├── package.json, package-lock.json   scripts; two dev dependencies (the tinfoil SDK and esbuild,
 │                              pinned exactly) used only to bundle the test page. The image installs nothing.
-├── Dockerfile                 digest-pinned node:24.14.1-alpine3.23, two files copied, runs as `node`
-├── .dockerignore              only package.json and server.mjs reach the image
+├── Dockerfile                 digest-pinned node:24.14.1-alpine3.23, runs as `node`
+├── .dockerignore              only package.json, server.mjs, lib/, agreement/ and policy/ reach the image
 ├── tinfoil-config.yml         the measured config: allowlist, env, secret names, shim paths
 ├── LICENSE                    AGPL-3.0
 ├── .github/workflows/         for the PUBLIC repository (inert here):
@@ -46,7 +63,9 @@ lab/cloud-orchestrator/
 │   ├── build-image.mjs          builds twice with BuildKit and compares the digests
 │   └── make-signing-key.mjs     makes the Ed25519 key for the managed-secret fallback
 ├── test/
-│   ├── orchestrator.test.mjs    the contract the page relies on, run with `npm test`
+│   ├── orchestrator.test.mjs    the HTTP contract: health, pubkey, a turn, the connectivity check, key sources
+│   ├── compile.test.mjs, floor.test.mjs, turn.test.mjs   the page, each floor item, whole turns
+│   ├── helpers.mjs, fixtures/   the builder's own Rivera export, a setup, a scripted model and judge
 │   └── mock-inference.mjs       a stand-in for inference.tinfoil.sh (local only)
 └── web/
     ├── index.html, app.js       the browser test page (runs the `tinfoil` SDK's verifier)
@@ -64,7 +83,7 @@ used throughout this README.
 ```bash
 cd lab/cloud-orchestrator
 npm install     # once: the two dev dependencies that build the page bundle
-npm test        # 9 tests: health, pubkey, a signed turn, failure modes, the three key sources
+npm test        # 44 tests: the HTTP contract, the page, every floor item, whole turns
 npm run dev     # bundles the page, then: mock inference on 8081, the service on 8080,
                 # the page on http://localhost:8097
 ```

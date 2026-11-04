@@ -1,4 +1,4 @@
-# KitchenTableAI orchestrator, spike build. SPDX-License-Identifier: AGPL-3.0-only
+# KitchenTableAI orchestrator. SPDX-License-Identifier: AGPL-3.0-only
 #
 # This file is measured. Tinfoil hashes it into the enclave's kernel command line
 # (tinfoil-config-hash=... in the published tinfoil-deployment.json), so the image digest,
@@ -15,9 +15,10 @@ cpus: 2
 memory: 8192
 
 networks:
-  # Exit test 2: the only host the container may reach is the inference API. If the model
-  # call succeeds with this list, the allowlist is doing its job. There is deliberately no
-  # entry for our own control plane in the spike.
+  # The only host the container may reach is the inference API, for the chat model and the
+  # judge alike. There is deliberately no entry for our own control plane yet: in this build the
+  # family's device sends the Agreement with each turn, and the signed envelope goes back to the
+  # device, not to a server of ours.
   inference:
     egress: allowlist
     allow:
@@ -31,10 +32,14 @@ containers:
     env:
       - PORT: "8080"
       - INFERENCE_URL: "https://inference.tinfoil.sh/v1/chat/completions"
-      - MODEL: "glm-5-3"
-      # GLM 5.3 cannot switch reasoning off; "low" is the floor. gemma4-31b takes "none".
-      - REASONING_EFFORT: "low"
-      - MAX_TOKENS: "400"
+      # Which model answers each age band, and which judges a kid's turn, live in
+      # policy/model-policy.json inside the image (GLM 5.3 for every band at "low", its floor;
+      # gpt-oss-safeguard-120b as the judge, 3 s timeout, one retry, give up at 6 s).
+      #
+      # The spike's connectivity check: /turn with { "prompt": "..." } and a fixed system line,
+      # no family data, which the browser check page (web/) uses. It is a raw model call outside
+      # the floor, so it is switched off ("off" or removed) before any family uses this instance.
+      - CONNECTIVITY_TURN: "on"
     secrets:
       # Both are Tinfoil-managed secrets, created with `tinfoil secret create` (README step 7).
       # TINFOIL_API_KEY: the inference key.

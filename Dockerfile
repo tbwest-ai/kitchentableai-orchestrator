@@ -1,4 +1,4 @@
-# KitchenTableAI orchestrator, spike build. SPDX-License-Identifier: AGPL-3.0-only
+# KitchenTableAI orchestrator. SPDX-License-Identifier: AGPL-3.0-only
 #
 # Built for a reproducible digest. What that needs (verified locally with scripts/build-image.mjs):
 #   1. The base image pinned by digest, not by tag. The tag is kept for readability only.
@@ -17,6 +17,10 @@ ENV NODE_ENV=production \
 
 WORKDIR /app
 COPY --chown=node:node package.json server.mjs ./
+# The compiler, the floor and the judge; the content model and band guide they read; the model policy.
+COPY --chown=node:node lib ./lib
+COPY --chown=node:node agreement ./agreement
+COPY --chown=node:node policy ./policy
 
 # The enclave runs the container with zero capabilities and a read-only root filesystem.
 # Nothing here writes to disk, and the process runs as the unprivileged `node` user.
