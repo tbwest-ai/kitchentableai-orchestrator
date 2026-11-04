@@ -1,0 +1,118 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Family test chat</title>
+<!-- SPDX-License-Identifier: AGPL-3.0-only
+     KitchenTableAI's test chat, for the founder's own family before the product has an app. It
+     verifies the orchestrator's enclave in this browser with Tinfoil's verifier, loads a Family
+     AI Agreement export, and sends one person's messages through /turn over the verified channel.
+     The Agreement and the conversation live in this tab's memory only: nothing is written to
+     storage, and closing the tab forgets them. -->
+<script type="importmap">
+{ "imports": { "tinfoil": "./vendor/tinfoil.js" } }
+</script>
+<style>
+  :root { --bg: #fff; --fg: #1c1c1e; --muted: #6b6b70; --line: #e3e3e6; --ok: #1d7a3a; --bad: #b3261e; --warn: #9a6700; --card: #f7f7f8; --me: #e9f0ff; --ai: #f2f2f4; }
+  @media (prefers-color-scheme: dark) { :root { --bg: #111214; --fg: #ececf0; --muted: #9a9aa3; --line: #2b2c31; --ok: #5fcf7f; --bad: #ff7a70; --warn: #e3b341; --card: #1a1b1f; --me: #1d2a44; --ai: #202126; } }
+  body { margin: 0; padding: 24px 16px 64px; background: var(--bg); color: var(--fg); font: 15px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif; max-width: 760px; margin-inline: auto; }
+  h1 { font-size: 22px; margin: 0 0 4px; }
+  h2 { font-size: 15px; margin: 0 0 8px; }
+  p.lead { color: var(--muted); margin: 0 0 16px; }
+  label { display: block; font-size: 13px; color: var(--muted); margin-top: 10px; }
+  input, textarea, select { box-sizing: border-box; font: inherit; padding: 8px 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--bg); color: var(--fg); }
+  input.wide, textarea { width: 100%; }
+  textarea { min-height: 44px; resize: vertical; }
+  .row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-top: 10px; }
+  button { font: inherit; padding: 8px 14px; border-radius: 8px; border: 1px solid var(--line); background: var(--card); color: var(--fg); cursor: pointer; }
+  button.primary { background: var(--fg); color: var(--bg); border-color: var(--fg); }
+  button.chip { border-radius: 999px; padding: 6px 14px; }
+  button.chip.on { background: var(--fg); color: var(--bg); border-color: var(--fg); }
+  button:disabled { opacity: .5; cursor: default; }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px; margin-top: 12px; }
+  .status { font-size: 14px; margin-top: 8px; }
+  .ok { color: var(--ok); } .bad { color: var(--bad); } .warn { color: var(--warn); } .muted { color: var(--muted); }
+  table.people { border-collapse: collapse; margin-top: 6px; font-size: 14px; }
+  table.people td, table.people th { padding: 4px 8px 4px 0; text-align: left; }
+  table.people th { color: var(--muted); font-weight: 500; }
+  table.people input[type=number] { width: 72px; }
+  #log { display: flex; flex-direction: column; gap: 10px; margin-top: 12px; }
+  .msg { max-width: 86%; padding: 10px 12px; border-radius: 14px; white-space: pre-wrap; word-wrap: break-word; }
+  .msg.me { align-self: flex-end; background: var(--me); border-bottom-right-radius: 4px; }
+  .msg.ai { align-self: flex-start; background: var(--ai); border-bottom-left-radius: 4px; }
+  .msg.note { align-self: center; background: none; color: var(--muted); font-size: 13px; padding: 2px; }
+  .meta { font-size: 12px; color: var(--muted); margin-top: 6px; white-space: normal; }
+  .meta button { font-size: 12px; padding: 2px 8px; margin-left: 6px; }
+  details { margin-top: 6px; font-size: 12px; white-space: normal; }
+  details ul { margin: 4px 0 0; padding-left: 18px; }
+  pre { white-space: pre-wrap; word-break: break-word; font: 12px/1.5 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 10px; max-height: 420px; overflow: auto; margin: 8px 0 0; }
+  .composer { position: sticky; bottom: 0; background: var(--bg); padding-top: 10px; }
+  .hidden { display: none; }
+</style>
+</head>
+<body>
+<h1>Family test chat</h1>
+<p class="lead">For trying KitchenTableAI with your own family's Agreement. Messages go only to the verified enclave. This page keeps nothing: close the tab and the Agreement and the chat are gone from this browser.</p>
+
+<div class="card">
+  <h2>1. Connect</h2>
+  <label for="enclave">Enclave</label>
+  <input id="enclave" class="wide" value="https://orchestrator-spike.familyaiagreement.containers.tinfoil.dev" spellcheck="false">
+  <label for="repo">Config repository (no @tag: the verifier checks the latest release and reports it)</label>
+  <input id="repo" class="wide" value="tbwest-ai/kitchentableai-orchestrator" spellcheck="false">
+  <div class="row">
+    <button id="connect" class="primary">Verify and connect</button>
+    <button id="local" title="Plain fetch to http://localhost:8080, for npm run dev. No attestation.">Local, unverified</button>
+  </div>
+  <div id="cstatus" class="status muted">Not connected.</div>
+</div>
+
+<div class="card">
+  <h2>2. Your Agreement</h2>
+  <div class="row" style="margin-top:0">
+    <button id="sample">Use the sample family</button>
+    <label class="row" style="margin:0"><input id="file" type="file" accept=".json,application/json"></label>
+  </div>
+  <label for="paste">Or paste an export (from the builder's draft-to-export script)</label>
+  <textarea id="paste" spellcheck="false" placeholder='{ "format": "family-ai-agreement", "version": 1, … }'></textarea>
+  <div class="row"><button id="loadPaste">Load what I pasted</button></div>
+  <div id="astatus" class="status muted">No Agreement loaded.</div>
+</div>
+
+<div id="setupCard" class="card hidden">
+  <h2>3. Finish setting up</h2>
+  <div class="row" style="margin-top:0">
+    <label style="margin:0">Time zone <input id="tz" spellcheck="false" style="width:220px"></label>
+    <label style="margin:0">The AI's name, if the family gave it one <input id="aiName" spellcheck="false" style="width:160px"></label>
+  </div>
+  <table class="people">
+    <thead><tr><th>Person</th><th>Age band</th><th>Pronouns</th><th>Age</th></tr></thead>
+    <tbody id="people"></tbody>
+  </table>
+  <p class="muted" style="font-size:13px;margin:8px 0 0">Chats are kept for 30 days in the product. Here they are kept nowhere. The adults are taken as the parents.</p>
+</div>
+
+<div id="whoCard" class="card hidden">
+  <h2>4. Who is chatting?</h2>
+  <div id="who" class="row" style="margin-top:0"></div>
+  <div class="row">
+    <button id="seePage" disabled>See what the AI is told</button>
+    <button id="clear" disabled>Clear this person's chat</button>
+  </div>
+  <pre id="pageText" class="hidden"></pre>
+</div>
+
+<div id="log"></div>
+
+<div class="composer">
+  <div class="row">
+    <textarea id="msg" placeholder="Connect, load an Agreement and pick a person first" disabled style="flex:1"></textarea>
+    <button id="send" class="primary" disabled>Send</button>
+  </div>
+  <div id="sstatus" class="status muted"></div>
+</div>
+
+<script type="module" src="./chat.js"></script>
+</body>
+</html>

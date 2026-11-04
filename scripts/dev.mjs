@@ -2,7 +2,8 @@
 // Local run of the whole spike, no Tinfoil account needed:
 //   - a mock inference API on 8081 that answers like glm-5-3 and records what it was sent,
 //   - the orchestrator on 8080 with an ephemeral signing key and a dummy API key,
-//   - the browser test page on 8097 (open http://localhost:8097 and use "Local, unverified").
+//   - the browser pages on 8097: the check (http://localhost:8097) and the test chat
+//     (http://localhost:8097/chat.html); on either, use "Local, unverified".
 // Nothing here is a real secret. The mock never reaches the internet.
 
 import { spawn } from "node:child_process";

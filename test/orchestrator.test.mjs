@@ -170,10 +170,23 @@ test("/turn with an Agreement: compiled, judged, held, signed with the published
   assert.ok(!body.envelope.payload.includes("book report"));
   const chat = await (await fetch(`http://127.0.0.1:${mockPort}/last`)).json();
   assert.equal(chat.body.model, "glm-5-3");
-  assert.match(chat.body.messages[0].content, /^You are the Rivera family's own AI./);
+  assert.match(chat.body.messages[0].content, /^You are the Rivera family's own AI\./);
   const judge = await (await fetch(`http://127.0.0.1:${mockPort}/last-judge`)).json();
   assert.equal(judge.body.model, "gpt-oss-safeguard-120b");
   assert.match(judge.body.messages[1].content, /book report/);
+
+  // "See what the AI is told": the same page, by the same hash, with no model call.
+  const p = await fetch(`http://127.0.0.1:${port}/page`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ agreement, setup, personId: "id3" }),
+  });
+  assert.equal(p.status, 200);
+  const page = await p.json();
+  assert.equal(page.text, chat.body.messages[0].content);
+  assert.equal(page.sha256, JSON.parse(body.envelope.payload).page.sha256);
+  const bad = await fetch(`http://127.0.0.1:${port}/page`, { method: "POST", body: JSON.stringify({ agreement, personId: "id3" }) });
+  assert.equal(bad.status, 422);
 });
 
 test("logs carry no prompt, message or Agreement text", () => {

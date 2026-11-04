@@ -36,10 +36,11 @@ containers:
       # policy/model-policy.json inside the image (GLM 5.3 for every band at "low", its floor;
       # gpt-oss-safeguard-120b as the judge, 3 s timeout, one retry, give up at 6 s).
       #
-      # The spike's connectivity check: /turn with { "prompt": "..." } and a fixed system line,
-      # no family data, which the browser check page (web/) uses. It is a raw model call outside
-      # the floor, so it is switched off ("off" or removed) before any family uses this instance.
-      - CONNECTIVITY_TURN: "on"
+      # The spike's connectivity check (/turn with { "prompt": "..." }, a raw model call outside
+      # the floor) is off from v0.3.0, when the founder's family starts using this instance: every
+      # model call now goes through the Agreement, the floor and the judge. The browser check page
+      # sends a turn for the synthetic sample family instead.
+      - CONNECTIVITY_TURN: "off"
     secrets:
       # Both are Tinfoil-managed secrets, created with `tinfoil secret create` (README step 7).
       # TINFOIL_API_KEY: the inference key.
@@ -76,6 +77,7 @@ shim:
   paths:
     - /health
     - /turn
+    - /page
     - /pubkey
-  # `origins` is left unset for the spike so the browser test page can be served from
-  # localhost. Production sets it to the app's origin.
+  # `origins` is left unset so the test pages (web/index.html, web/chat.html) can be served
+  # from localhost. Production sets it to the app's origin.

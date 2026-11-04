@@ -14,6 +14,11 @@ const TYPES = { ".html": "text/html; charset=utf-8", ".js": "text/javascript; ch
 createServer(async (req, res) => {
   let path = new URL(req.url, "http://localhost").pathname;
   if (path === "/") path = "/index.html";
+  // The synthetic sample family, from the tests' own fixture, so there is one copy of it.
+  if (path === "/sample/rivera-export.json") {
+    res.writeHead(200, { "content-type": TYPES[".json"], "cache-control": "no-store" });
+    return res.end(await readFile(join(here, "..", "test", "fixtures", "rivera-export.json")));
+  }
   const file = normalize(join(here, path));
   if (!file.startsWith(here)) {
     res.writeHead(403);
