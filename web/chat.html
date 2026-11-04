@@ -47,7 +47,14 @@
   details { margin-top: 6px; font-size: 12px; white-space: normal; }
   details ul { margin: 4px 0 0; padding-left: 18px; }
   pre { white-space: pre-wrap; word-break: break-word; font: 12px/1.5 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 10px; max-height: 420px; overflow: auto; margin: 8px 0 0; }
-  .composer { position: sticky; bottom: 0; background: var(--bg); padding-top: 10px; }
+  .composer { position: sticky; bottom: 0; background: var(--bg); padding-top: 10px; padding-bottom: 8px; }
+  /* The two lines everyone sees: once, under the most recent reply, and never out of view. */
+  .notice { margin: 4px 0 2px; text-align: center; font-size: 12px; line-height: 1.45; color: var(--muted); }
+  .notice p { margin: 0; }
+  .warn-line { margin-top: 6px; font-size: 12px; color: var(--bad); white-space: normal; }
+  /* Test details (outcome, signatures, labels) stay off unless the tester turns them on. */
+  .testdetail { display: none; }
+  body.show-details .testdetail { display: block; }
   .hidden { display: none; }
 </style>
 </head>
@@ -99,6 +106,7 @@
   <div class="row">
     <button id="seePage" disabled>See what the AI is told</button>
     <button id="clear" disabled>Clear this person's chat</button>
+    <label style="margin:0" title="For testing: each reply's outcome, signature check and labels. In the product these belong in the parent dashboard."><input id="details" type="checkbox"> Show test details</label>
   </div>
   <pre id="pageText" class="hidden"></pre>
 </div>
@@ -106,7 +114,11 @@
 <div id="log"></div>
 
 <div class="composer">
-  <div class="row">
+  <div class="notice" role="note">
+    <p>Answers come from AI which can make mistakes. Check anything important with a parent or another trusted source.</p>
+    <p>Your chats are encrypted and go only to a private, verified computer. No one outside your family can read them.</p>
+  </div>
+  <div class="row" style="margin-top:6px">
     <textarea id="msg" placeholder="Connect, load an Agreement and pick a person first" disabled style="flex:1"></textarea>
     <button id="send" class="primary" disabled>Send</button>
   </div>

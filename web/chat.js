@@ -299,10 +299,16 @@ async function send(text) {
     if (env.page?.sha256) state.lastPageSha.set(personId, env.page.sha256);
     const judged = body.outcome === "cleared" || body.outcome === "replaced";
     const signedText = check?.ok ? (reverified ? "signed, by the updated enclave's new key" : "signed") : check ? "SIGNATURE FAILED" : "unsigned here";
-    const meta = el("div", { class: "meta" }, `${OUTCOME[body.outcome] ?? body.outcome}${judged ? ", held until checked" : ""} · ${signedText}`);
-    if (body.retry) meta.append(el("button", { onclick: () => send(message) }, "Send again"));
-    const labels = el("details", {}, el("summary", {}, "What the labels say"), el("ul", {}, ...describe(env, check, body.timing).map((l) => el("li", {}, l))));
-    const bubble = el("div", { class: "msg ai" }, body.reply, meta, labels);
+    // A reply shows only its words. What the person must act on stays: "Send again" when the reply
+    // could not be checked in time, and a warning when its signature does not verify. The outcome,
+    // the signature line and the labels are test details, hidden unless "Show test details" is on;
+    // in the product they belong in the parent dashboard (the founder, 2026-11-04).
+    const extras = [];
+    if (body.retry) extras.push(el("div", { class: "meta" }, el("button", { onclick: () => send(message) }, "Send again")));
+    if (check && !check.ok) extras.push(el("div", { class: "warn-line" }, "This reply could not be verified, so don't rely on it."));
+    const meta = el("div", { class: "meta testdetail" }, `${OUTCOME[body.outcome] ?? body.outcome}${judged ? ", held until checked" : ""} · ${signedText}`);
+    const labels = el("details", { class: "testdetail" }, el("summary", {}, "What the labels say"), el("ul", {}, ...describe(env, check, body.timing).map((l) => el("li", {}, l))));
+    const bubble = el("div", { class: "msg ai" }, body.reply, ...extras, meta, labels);
     if (body.retry) {
       // Not answered: the message is kept for a resend and stays out of the history.
       mine.view.push(bubble);
@@ -347,6 +353,7 @@ $("file").onchange = async (e) => {
   e.target.value = "";
 };
 $("seePage").onclick = seePage;
+$("details").onchange = (e) => document.body.classList.toggle("show-details", e.target.checked);
 $("clear").onclick = () => {
   state.histories.delete(state.personId);
   renderLog();
