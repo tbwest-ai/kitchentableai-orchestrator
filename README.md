@@ -18,6 +18,12 @@ each age band is configuration, in `policy/model-policy.json`.
 does) and `POST /page`, the compiled page on request. The spike's raw connectivity check is off:
 every model call now goes through the Agreement, the floor and the judge.
 
+**v0.4.0 adds the lock** (`lib/access.mjs`; TURN.md, "The lock"): a turn or a page needs a pass
+the family app's server signed for one device, one person and one exact Agreement, checked against
+the public key in the measured config; the synthetic sample family stays open for the check page,
+and per-family and per-device limits cap the cost. The deployed config stays `ACCESS: "open"`
+until the family app issues passes.
+
 The rest of this README is the go/no-go spike (v0.1.0 to v0.1.2, 2026-10-23 to 2026-11-02), kept
 for the record: all three of its exit tests passed on a real instance, and the steps below are how
 a release still reaches it.
@@ -50,8 +56,10 @@ lab/cloud-orchestrator/
 ├── server.mjs                 the service: Node 24, standard library only
 ├── TURN.md                    one turn: the request, the order, the envelope, what is not built yet
 ├── lib/                       the compiler, the floor, the judge, the turn, signing and sealing
-├── agreement/                 snapshots of the builder's content model and the band guide
+├── agreement/                 snapshots of the builder's content model and the band guide, and the
+│                              synthetic sample family (sample-export.json) the lock admits without a pass
 ├── policy/model-policy.json   which model answers each age band; the judge and its tail
+├── policy/access-policy.json  the lock's pass lifetime and limits
 ├── package.json, package-lock.json   scripts; two dev dependencies (the tinfoil SDK and esbuild,
 │                              pinned exactly) used only to bundle the test page. The image installs nothing.
 ├── Dockerfile                 digest-pinned node:24.14.1-alpine3.23, runs as `node`
@@ -65,11 +73,14 @@ lab/cloud-orchestrator/
 ├── scripts/
 │   ├── dev.mjs                  local run: mock inference + service + both pages
 │   ├── build-image.mjs          builds twice with BuildKit and compares the digests
-│   └── make-signing-key.mjs     makes the Ed25519 key for the managed-secret fallback
+│   ├── make-signing-key.mjs     makes the Ed25519 key for the managed-secret fallback
+│   ├── make-access-key.mjs      makes the family app's access key pair (the lock)
+│   └── mint-pass.mjs            makes a family pass by hand, for a test
 ├── test/
 │   ├── orchestrator.test.mjs    the HTTP contract: health, pubkey, a turn, the page, the connectivity check, key sources
 │   ├── compile.test.mjs, floor.test.mjs, turn.test.mjs, page.test.mjs   the page, each floor item, whole turns, /page
-│   ├── helpers.mjs, fixtures/   the builder's own Rivera export, a setup, a scripted model and judge
+│   ├── access.test.mjs, lock.test.mjs   the lock: passes, limits, and the server end to end
+│   ├── helpers.mjs              the sample family, a setup, a scripted model and judge
 │   └── mock-inference.mjs       a stand-in for inference.tinfoil.sh (local only)
 └── web/
     ├── index.html, app.js       the browser check page (runs the `tinfoil` SDK's verifier)

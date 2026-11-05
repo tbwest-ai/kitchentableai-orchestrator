@@ -33,6 +33,43 @@ only host it can reach is `inference.tinfoil.sh`.
 - **`history`** is the conversation so far, oldest first, kept on the person's device. It is
   trimmed to the last 20 messages and 24,000 characters, and always starts with the person.
 - The **clock** is the container's. Nothing in the request can move a kid's hours.
+- **`pass`** (since v0.4.0) is the family's pass, below. `/page` takes the same one.
+
+## The lock (v0.4.0)
+
+Only an invited family's device can run a turn or read a page. The family's account (the family
+app's server, the control plane) signs a short-lived **pass** for one device, one person and one
+exact Agreement and setup, and the device sends it in the request body, inside the encrypted
+channel. `lib/access.mjs` checks it against the Ed25519 public keys in the measured config
+(`ACCESS_PUBLIC_KEYS`), so anyone can read which account server may admit a family, and this
+service holds no secret for it.
+
+```
+pass    = base64url(payload JSON) + "." + base64url(Ed25519 signature over the first part's ASCII)
+payload = { "v": 1, "aud": "kitchentableai-orchestrator", "fam": "...", "dev": "...", "pid": "id3",
+            "ah": "<hex sha256 of canonicalJson({ agreement, setup })>", "iat": 1762300000, "exp": 1762303600 }
+```
+
+- **`pid`** is the person: a kid cannot run a parent's page with a kid's pass.
+- **`ah`** binds the exact Agreement and setup, so a device cannot edit its own rules. The control
+  plane hashes with the same `canonicalJson` (keys sorted, undefined left out).
+- A pass lives at most 12 hours (`policy/access-policy.json`); the app asks for a fresh one with
+  the Agreement, so a parent's change reaches the device on its next pass.
+- A refused pass is a **401 with `failed_closed: true`**, a `code` (`no_pass`, `bad_pass`,
+  `bad_signature`, `not_yet`, `expired`, `too_long`, `wrong_person`, `agreement_changed`,
+  `locked`) and plain words for the device to show.
+- **The synthetic sample family** (`agreement/sample-export.json`, the builder's own Rivera
+  fixture) needs no pass, so the public check page and a verifier can still try a turn.
+- **Limits**, a cost guard for the founding test: 400 turns a day per family, by the family's own
+  date, and 20 a minute per device; the sample family shares 100 a day. Only a turn that would
+  reach a model counts. Past a limit the reply says so, and **a crisis past a limit still gets the
+  crisis reply, 988 included**. The envelope says which limit (`floor.limited`) and whom the lock
+  admitted (`access`: the control plane's opaque family and device ids, or the sample).
+- `ACCESS=open` admits anyone. It is for a local run, and for the deployed config until the
+  family app issues passes; `/health` reports the mode (`open`, `passes` or `sample-only`) and how
+  many keys, so a verifier sees which one is running.
+- `scripts/make-access-key.mjs` makes the key pair (the private half goes only in the family
+  app's server settings); `scripts/mint-pass.mjs` makes a pass by hand for a test.
 
 ## What happens, in order
 
@@ -41,6 +78,7 @@ only host it can reach is `inference.tinfoil.sh`.
 | 1 | The Agreement and setup are validated. Anything missing, malformed, unfinished or unknown is a **422 with `failed_closed: true`**, and no model is called. | 1 |
 | 2 | The crisis patterns read the message, before every gate. | 7 |
 | 3 | Hours, if the hours setting applies to this person, in the family's time zone. Out of hours: no model; the reply says when the hours start and to ask a parent by first name. A crisis out of hours never reaches it: the crisis check has already answered with the crisis reply, 988 included. | 2 |
+| 3b | The lock's limits (since v0.4.0): past the family's daily limit or the device's burst limit, no model; the reply says so. A crisis past a limit has already been answered with the crisis reply. | the lock |
 | 4 | The page is compiled (`lib/compile.mjs`, v2, five layers) with today's date. The homework reminder goes next to a schoolwork message. The band's model answers (`policy/model-policy.json`; GLM 5.3 at `low` for every band), with `gpt-oss-120b` as the fallback. | 3, 13, 15 |
 | 5 | **A kid's reply is held** until `gpt-oss-safeguard-120b` has labeled the message and the reply. It is **replaced only on a safety label on the reply**: sexual, dangerous, companion drift, secrecy from parents. 3-second timeout, one retry, give up at 6 seconds and ask the kid to send it again. An empty verdict is not cleared. **A crisis never waits for the judge.** Adults are not judged. The judge's label on the message (danger, abuse, self-harm, homework…) is recorded in the envelope and **never adds words to the reply** (since v0.3.2: it read a fire and a school bully as danger and abuse). | judge, decision 18 |
 | 6 | The honesty check replaces a false promise ("I'm sending a message to your parent") or a false storage or deletion claim with the true sentence. Then, only when the measured crisis patterns matched the message, the crisis floor adds what the reply is missing: the parents by first name and 988; on abuse, 988 and an adult outside the home, never the parents; on distress, the parents by name. The page itself keeps 988 for self-harm, not wanting to be alive, abuse at home and real danger, sends ordinary trouble (a bully, a bad day) to the parents and a teacher, and sends an emergency happening now to 911. | 7, 9 |
@@ -127,7 +165,10 @@ The out-of-hours reply is the founder's (2026-11-04, "Use version A"): "It's out
 right now. Your hours today start at 3:30pm. If you need help before then, ask Dana or Marco.",
 with "They ended at 7:00pm and start again tomorrow at 3:30pm." after the hours, and no 988.
 
-These sentences are ours and wait on the founder's words: the crisis and distress sentences
+These sentences are ours and wait on the founder's words: the limit replies (`limitReply` in
+`lib/turn.mjs`: "That's all the AI for today. It starts again tomorrow. If you need help before
+then, ask Dana or Marco." and "That's a lot of messages in one minute. Wait a moment, then try
+again."), the pass refusals (`PASS_ERRORS` in `lib/access.mjs`), the crisis and distress sentences
 (`lib/crisis.mjs`), the honesty corrections
 (`lib/honesty.mjs`), the judge's replacements and the give-up lines, including the gentler ones on
 a secret or on distress (`lib/judge.mjs`), and the

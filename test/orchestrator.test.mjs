@@ -149,7 +149,7 @@ test("/turn fails closed with no Agreement, and rejects an empty or over-long ch
 });
 
 test("/turn with an Agreement: compiled, judged, held, signed with the published key", async () => {
-  const agreement = JSON.parse(readFileSync(join(root, "test", "fixtures", "rivera-export.json"), "utf8"));
+  const agreement = JSON.parse(readFileSync(join(root, "agreement", "sample-export.json"), "utf8"));
   const setup = { format: "kitchentableai-setup", version: 1, timeZone: "America/New_York", people: { id3: { pronouns: "she", age: 9 } } };
   const message = "Can you help me plan my book report about the moon?";
   const r = await fetch(`http://127.0.0.1:${port}/turn`, {
