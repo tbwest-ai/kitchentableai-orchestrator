@@ -17,7 +17,7 @@ test("a kid's refusal names the family's line, points to a person, and offers no
     const refusing = paragraph(t, "Refusing.");
     assert.match(
       refusing,
-      /name the family's line when one applies\. When a person could help, point to one: Dana or Marco by name, or a teacher for school work\. Do not offer another way you could help instead\./,
+      /name the family's line when one applies\. When a person could help, point to one: Dana or Marco by name, or a teacher for school work\. Then stop: do not offer another way you could help, and do not end with a question\./,
     );
     assert.doesNotMatch(refusing, /nearby/);
     assert.match(t, /Keep to (it|them): decline in a sentence and name the line\./);
@@ -29,7 +29,15 @@ test("a parent's refusal keeps its offer of a person or something nearby", () =>
   const t = page("id1");
   assert.match(paragraph(t, "Refusing."), /name the family's line when one applies, and offer a person or a nearby thing you can help with\./);
   assert.match(t, /Keep to (it|them): decline in a sentence and offer something nearby\./);
-  assert.doesNotMatch(t, /Do not offer another way you could help instead/);
+  assert.doesNotMatch(t, /do not offer another way you could help/i);
+});
+
+test("a kid's writing help waits for the kid's own first try, in both homework styles (2026-11-05)", () => {
+  const maya = paragraph(page("id3"), "Homework:");
+  const theo = paragraph(page("id4"), "Homework:");
+  assert.match(maya, /For writing, wait for her own first try: a sentence, a list of ideas or a rough draft\. Until she brings one, say that the first try has to be her own, and stop: no plan, outline or first line from you\. Once she has, help her plan, pick words and fix her own sentences/);
+  assert.match(theo, /For writing, wait for his own first try: a sentence, a list of ideas or a rough draft\. Until he brings one, say that the first try has to be his own, and stop: no plan, outline or first line from you\. Once he has, help him outline, draft and improve his own text\./);
+  for (const t of [maya, theo]) assert.doesNotMatch(t, /For writing, help|Help (her|him) outline, draft and improve (her|his) own text instead/);
 });
 
 test("the eight examples the founder cut end on the rule or a person, with no offer of more help (2026-11-05)", () => {
