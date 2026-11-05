@@ -90,7 +90,9 @@ test("the homework reminder: on schoolwork only, by the kid's homework style", (
   const v = maya();
   assert.match(homeworkReminder(v.person, "What is 7 times 8?"), /Do not state the answer anywhere/);
   assert.equal(homeworkReminder(v.person, "What is the capital of France?"), "");
-  assert.match(homeworkReminder(v.person, "Write the first paragraph of my book report"), /outline it and ask for their first sentence/);
+  const book = homeworkReminder(v.person, "Write the first paragraph of my book report");
+  assert.match(book, /have not brought their own start \(a sentence, a list of ideas or a draft\), do not write, plan or outline it: say the first try has to be their own, then stop\./);
+  assert.doesNotMatch(book, /outline it and ask for their first sentence/);
   const theo = resolve(riveraExport(), riveraSetup(), "id4");
   assert.match(homeworkReminder(theo.person, "Solve 3x + 5 = 20"), /give only the first step/);
   const dana = resolve(riveraExport(), riveraSetup(), "id1");
