@@ -3,7 +3,7 @@
   "version": 1,
   "source": {
     "repository": "the Family AI Agreement builder (a private repository), agreement/priorities",
-    "commit": "d362e3fa343c68327f8e8d8a0441807aad5a4a2b",
+    "commit": "8021ce3c7bad6c40aa72314d5d8aa1e05a772183",
     "dirty": false,
     "note": "The builder's own rows, as the family saw them. Ids are stable; words change by copy edit."
   },
