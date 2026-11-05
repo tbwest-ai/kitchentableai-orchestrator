@@ -94,7 +94,7 @@ test("past the family's daily limit: no model, plain words, and the envelope say
   const [status, out] = await runTurn({ agreement: a(), setup: s(), personId: "id3", message: "What is 7 times 8?" }, ctxWith(infer, { limits, who: { family: "f", device: "d" } }));
   assert.equal(status, 200);
   assert.equal(out.outcome, "daily_limit");
-  assert.equal(out.reply, "That's all the AI for today. It starts again tomorrow. If you need help before then, ask Dana or Marco.");
+  assert.equal(out.reply, "You've reached your daily limit. You can use the AI again tomorrow. If you need help before then, ask Dana or Marco.");
   assert.equal(calls.chat.length, 0);
   const e = envelopeOf(out);
   assert.equal(e.floor.limited, "day");
@@ -119,4 +119,15 @@ test("a turn under the limits runs as before and names the sample when the lock 
   const e = envelopeOf(out);
   assert.equal(e.floor.limited, null);
   assert.deepEqual(e.access, { sample: true });
+});
+
+test("the burst limit's reply is the founder's, and a parent's daily one has no parents line", async () => {
+  const burst = makeLimits({ familyTurnsPerDay: 5, deviceTurnsPerMinute: 0, sampleTurnsPerDay: 5 });
+  const { infer } = scriptedInfer();
+  const [, kid] = await runTurn({ agreement: a(), setup: s(), personId: "id3", message: "hi" }, ctxWith(infer, { limits: burst, who: { family: "f", device: "d" } }));
+  assert.equal(kid.outcome, "slow_down");
+  assert.equal(kid.reply, "You've exceeded limits. Wait a minute, then try again.");
+  const day = makeLimits({ familyTurnsPerDay: 0, deviceTurnsPerMinute: 5, sampleTurnsPerDay: 0 });
+  const [, parent] = await runTurn({ agreement: a(), setup: s(), personId: "id1", message: "hi" }, ctxWith(infer, { limits: day, who: { family: "f", device: "d" } }));
+  assert.equal(parent.reply, "You've reached your daily limit. You can use the AI again tomorrow.");
 });

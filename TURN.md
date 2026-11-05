@@ -165,10 +165,13 @@ The out-of-hours reply is the founder's (2026-11-04, "Use version A"): "It's out
 right now. Your hours today start at 3:30pm. If you need help before then, ask Dana or Marco.",
 with "They ended at 7:00pm and start again tomorrow at 3:30pm." after the hours, and no 988.
 
-These sentences are ours and wait on the founder's words: the limit replies (`limitReply` in
-`lib/turn.mjs`: "That's all the AI for today. It starts again tomorrow. If you need help before
-then, ask Dana or Marco." and "That's a lot of messages in one minute. Wait a moment, then try
-again."), the pass refusals (`PASS_ERRORS` in `lib/access.mjs`), the crisis and distress sentences
+The limit replies open with the founder's words (2026-11-05), and their endings are ours: "You've
+reached your daily limit. You can use the AI again tomorrow. If you need help before then, ask Dana
+or Marco." (the last sentence for kids only) and "You've exceeded limits. Wait a minute, then try
+again." (`limitReply` in `lib/turn.mjs`).
+
+These sentences are ours and wait on the founder's words: the pass refusals (`PASS_ERRORS` in
+`lib/access.mjs`), the crisis and distress sentences
 (`lib/crisis.mjs`), the honesty corrections
 (`lib/honesty.mjs`), the judge's replacements and the give-up lines, including the gentler ones on
 a secret or on distress (`lib/judge.mjs`), and the
