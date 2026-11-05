@@ -1,6 +1,6 @@
 {
   "name": "kitchentableai-orchestrator",
-  "version": "0.3.2",
+  "version": "0.3.3",
   "description": "The KitchenTableAI orchestrator: compiles a person's page from their Family AI Agreement, keeps the deterministic floor, holds a kid's reply for an independent judge, and signs label-only envelopes, inside an attested Tinfoil container. No runtime dependencies.",
   "license": "AGPL-3.0-only",
   "private": true,
