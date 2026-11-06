@@ -12,7 +12,7 @@ import { loadSigningKey } from "../lib/sign.mjs";
 const HERE = dirname(fileURLToPath(import.meta.url));
 export const ROOT = join(HERE, "..");
 
-export const riveraExport = () => JSON.parse(readFileSync(join(HERE, "fixtures", "rivera-export.json"), "utf8"));
+export const riveraExport = () => JSON.parse(readFileSync(join(ROOT, "agreement", "sample-export.json"), "utf8"));
 export const POLICY = JSON.parse(readFileSync(join(ROOT, "policy", "model-policy.json"), "utf8"));
 
 /** A setup for the builder's Rivera family. Maya (id3) and Theo (id4) are the kids. */
