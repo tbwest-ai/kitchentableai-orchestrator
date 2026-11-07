@@ -4,7 +4,7 @@
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { generateKeyPairSync, verify } from "node:crypto";
+import { createHash, generateKeyPairSync, verify } from "node:crypto";
 import { runTurn } from "../lib/turn.mjs";
 import { NO_CAPABILITIES } from "../lib/compile.mjs";
 import { GIVE_UP_REPLY } from "../lib/judge.mjs";
@@ -238,4 +238,59 @@ test("the topic is sealed to the family's key and only the family can open it", 
   // Without a family key, nothing about the topic leaves.
   const [, plain] = await runTurn(body("What is 7 times 8?"), ctxWith(infer));
   assert.equal(plain.sealed, null);
+});
+
+test("the sealed note carries the judge's area, and the envelope's signature covers each note by its hash", async () => {
+  const fam = generateKeyPairSync("x25519");
+  const familyPublicKey = fam.publicKey.export({ type: "spki", format: "der" }).toString("base64");
+  const { infer } = scriptedInfer({ judge: { message: "homework", reply: "ok", topic: "times tables", area: "math", why: "hint only" } });
+  const [, out] = await runTurn(body("What is 7 times 8?", { setup: riveraSetup({ familyPublicKey }) }), ctxWith(infer));
+  const note = JSON.parse(open(fam.privateKey, out.sealed));
+  assert.equal(note.area, "math");
+  const env = envelopeOf(out);
+  assert.equal(env.sealed_sha256, createHash("sha256").update(JSON.stringify(out.sealed)).digest("hex"));
+  // Maya's transcripts are off in this setup: no readable chat leaves.
+  assert.equal(out.transcript, null);
+  assert.equal(env.transcript_sha256, null);
+  // An area outside the list is dropped; the verdict still stands.
+  const odd = scriptedInfer({ judge: { message: "ok", reply: "ok", topic: "dinosaurs", area: "dinosaurs", why: "fine" } });
+  const [, out2] = await runTurn(body("What did T. rex eat?", { setup: riveraSetup({ familyPublicKey }) }), ctxWith(odd.infer));
+  assert.equal(out2.outcome, "cleared");
+  assert.equal(JSON.parse(open(fam.privateKey, out2.sealed)).area, null);
+});
+
+test("with transcripts on, the kid's message and reply are sealed for the parent phones, and never in the envelope", async () => {
+  const fam = generateKeyPairSync("x25519");
+  const familyPublicKey = fam.publicKey.export({ type: "spki", format: "der" }).toString("base64");
+  const setup = riveraSetup({ familyPublicKey, people: { ...riveraSetup().people, id3: { pronouns: "she", age: 9, transcripts: true } } });
+  const { infer } = scriptedInfer({ chat: "Try counting by sevens: 7, 14, 21. Where do you land after eight of them?", judge: { message: "homework", reply: "ok", topic: "times tables", area: "math", why: "hint" } });
+  const [, out] = await runTurn(body("What is 7 times 8?", { setup }), ctxWith(infer));
+  assert.ok(out.transcript);
+  const chat = JSON.parse(open(fam.privateKey, out.transcript));
+  assert.equal(chat.kind, "chat");
+  assert.equal(chat.message, "What is 7 times 8?");
+  assert.equal(chat.reply, out.reply);
+  const env = envelopeOf(out);
+  assert.equal(env.transcript_sha256, createHash("sha256").update(JSON.stringify(out.transcript)).digest("hex"));
+  assert.ok(!out.envelope.payload.includes("7 times 8"));
+  assert.ok(!JSON.stringify(out.transcript).includes("7 times 8"));
+
+  // Abuse at home is never in the readable chat, whether the patterns or the judge saw it.
+  const [, abuse] = await runTurn(body("my dad hits me when he gets mad", { setup }), ctxWith(infer));
+  assert.equal(abuse.transcript, null);
+  assert.equal(envelopeOf(abuse).transcript_sha256, null);
+  const judged = scriptedInfer({ chat: "I'm sorry that happened.", judge: { message: "abuse", reply: "ok", topic: "trouble at home", area: "feelings_friends", why: "abuse" } });
+  const [, j2] = await runTurn(body("someone at home scares me", { setup }), ctxWith(judged.infer));
+  assert.equal(j2.transcript, null);
+
+  // A turn the kid must send again is not part of the chat.
+  const slow = scriptedInfer({ judge: { content: "{}", delayMs: 500 } });
+  const [, gave] = await runTurn(body("spelling help", { setup }), ctxWith(slow.infer, { policy: fastPolicy() }));
+  assert.equal(gave.outcome, "gave_up");
+  assert.equal(gave.transcript, null);
+
+  // A parent's own chat is never readable by the family, transcripts or not.
+  const [, adult] = await runTurn(body("Plan a weeknight dinner", { setup, personId: "id1" }), ctxWith(infer));
+  assert.equal(adult.transcript, null);
+  assert.equal(adult.sealed, null);
 });

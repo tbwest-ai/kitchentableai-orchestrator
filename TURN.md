@@ -1,4 +1,4 @@
-# One turn, end to end (v0.2.0)
+# One turn, end to end (v0.2.0; sealed notes v0.5.0)
 
 Phase 1's first slice: a person's message in, the reply they may see out, compiled from their
 family's real Agreement, with the deterministic floor around the model and, for a kid, an
@@ -82,7 +82,7 @@ payload = { "v": 1, "aud": "kitchentableai-orchestrator", "fam": "...", "dev": "
 | 4 | The page is compiled (`lib/compile.mjs`, v2, five layers) with today's date. The homework reminder goes next to a schoolwork message. The band's model answers (`policy/model-policy.json`; GLM 5.3 at `low` for every band), with `gpt-oss-120b` as the fallback. | 3, 13, 15 |
 | 5 | **A kid's reply is held** until `gpt-oss-safeguard-120b` has labeled the message and the reply. It is **replaced only on a safety label on the reply**: sexual, dangerous, companion drift, secrecy from parents. 3-second timeout, one retry, give up at 6 seconds and ask the kid to send it again. An empty verdict is not cleared. **A crisis never waits for the judge.** Adults are not judged. The judge's label on the message (danger, abuse, self-harm, homework…) is recorded in the envelope and **never adds words to the reply** (since v0.3.2: it read a fire and a school bully as danger and abuse). | judge, decision 18 |
 | 6 | The honesty check replaces a false promise ("I'm sending a message to your parent") or a false storage or deletion claim with the true sentence. Then, only when the measured crisis patterns matched the message, the crisis floor adds what the reply is missing: the parents by first name and 988; on abuse, 988 and an adult outside the home, never the parents; on distress, the parents by name. The page itself keeps 988 for self-harm, not wanting to be alive, abuse at home and real danger, sends ordinary trouble (a bully, a bad day) to the parents and a teacher, and sends an emergency happening now to 911. | 7, 9 |
-| 7 | The envelope is signed. The topic is sealed to the family's key when the setup carries one. | 14 |
+| 7 | The envelope is signed. For a kid, the topic and area, and the chat itself where the family turned transcripts on, are sealed to the family's public half when the setup carries one, and the envelope names each sealed note's SHA-256 (since v0.5.0). | 14 |
 
 ## The response
 
@@ -96,6 +96,7 @@ payload = { "v": 1, "aud": "kitchentableai-orchestrator", "fam": "...", "dev": "
   "envelope": { "alg": "Ed25519", "payload": "{...}", "signature_b64": "...", "key_source": "attested-key", "key_id": "tinfoil:turn-signing", "public_key_spki_hex": "..." },
   "receipt":  { "alg": "Ed25519", "payload": "{...}", "signature_b64": "...", "...": "" },
   "sealed": null,
+  "transcript": null,
   "timing": { "total_ms": 1830, "model_ms": 920, "judge_ms": 880 }
 }
 ```
@@ -111,6 +112,29 @@ whether it was out of hours), the judge's labels, attempts and milliseconds, whe
 wanted, and token counts. No message, no reply, no page text, no names, and no hash of a message
 (a short message's hash can be guessed). The tests check that the envelope of a turn contains none
 of the message's or the reply's words.
+
+**The sealed notes** (since v0.5.0) are for the family's parent phones and nobody else: X25519
+with a fresh ephemeral half per note, HKDF-SHA256 and AES-256-GCM (`lib/seal.mjs`), to the
+setup's `familyPublicKey`, whose private half lives only on the family's parent phones.
+
+- `sealed`, for a kid whose turn the judge read: `{ v: 1, id, at, person_id, topic, area }`. The
+  topic is the judge's few words, no names; the area is one of `math`, `science`,
+  `reading_writing`, `history_world`, `arts`, `games_sports`, `feelings_friends`,
+  `health_body`, `tech`, `everyday` (`AREAS` in `lib/judge.mjs`), or null. An unknown area is
+  dropped and never costs the verdict. Adults are not judged, so they have none.
+- `transcript`, only for a kid whose family turned transcripts on (`setup.people[id].transcripts`):
+  `{ v: 1, kind: "chat", id, at, person_id, message, reply }`, the reply as the kid saw it. **Abuse
+  at home is never in it**, whether the patterns or the judge saw it: a parent can be the one doing
+  it, and the alert for abuse waits on counsel (decision 25). A turn the kid is asked to send again
+  is not in it either. An adult's chat never is.
+- The envelope's `sealed_sha256` and `transcript_sha256` are each note's SHA-256 over its JSON as
+  returned, or null. The envelope's signature covers them, so the family's account can tell the
+  service's note from one a device sealed itself (the public half is public). Neither hash is of
+  words: the ciphertext is fresh every time.
+
+The device hands the envelope and both notes to the family's account after the turn; the account
+checks the signature against `/pubkey`, keeps the labels for the parent dashboard and stores the
+notes it cannot open.
 
 **The receipt** is a second signature, over the turn id and the reply's SHA-256, for the device
 that stores the conversation. It lets a later build check that an assistant turn in `history`
