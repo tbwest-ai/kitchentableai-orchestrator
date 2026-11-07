@@ -24,6 +24,11 @@ the public key in the measured config; the synthetic sample family stays open fo
 and per-family and per-device limits cap the cost. The deployed config stays `ACCESS: "open"`
 until the family app issues passes.
 
+**v0.5.0 adds notes for the parent phones** (TURN.md, "The sealed notes"): for a kid, the judge's
+topic and an area from a fixed list, and the chat itself where the family turned transcripts on,
+each sealed to the family's public half and named by its SHA-256 in the signed envelope. Abuse at
+home is never in a readable chat.
+
 The rest of this README is the go/no-go spike (v0.1.0 to v0.1.2, 2026-10-23 to 2026-11-02), kept
 for the record: all three of its exit tests passed on a real instance, and the steps below are how
 a release still reaches it.
