@@ -41,10 +41,12 @@ containers:
       # model call now goes through the Agreement, the floor and the judge. The browser check page
       # sends a turn for the synthetic sample family instead.
       - CONNECTIVITY_TURN: "off"
-      # The lock (TURN.md, "The lock"). Open until the family app issues passes: then this line
-      # goes, and ACCESS_PUBLIC_KEYS names the app server's Ed25519 public key(s), by pull request.
-      # /health reports the mode, so a verifier sees which one is running.
-      - ACCESS: "open"
+      # The lock (TURN.md, "The lock"), on from v0.5.1. Only a device with a pass signed by the
+      # family app's server runs a turn or reads a page; this is that server's Ed25519 public key
+      # (base64url; comma-separated when there are more, as when the key is changed). The private
+      # half lives only in the family app's server settings. The synthetic sample family needs no
+      # pass. /health reports the mode ("passes") and how many keys, so a verifier sees it.
+      - ACCESS_PUBLIC_KEYS: "QzO0H6W5qFIb_Ged9gRxDOnUrWpLAEpiZe9kcMTGdks"
     secrets:
       # Both are Tinfoil-managed secrets, created with `tinfoil secret create` (README step 7).
       # TINFOIL_API_KEY: the inference key.
