@@ -227,6 +227,18 @@ test("the history window is passed on, trimmed to the policy, starting with the 
   assert.equal(msgs[1].content, "hi");
 });
 
+test("a whole sitting reaches the model: 60 messages pass, and past 100 the oldest go first", async () => {
+  const sitting = (n) => Array.from({ length: n }, (_, i) => ({ role: i % 2 ? "assistant" : "user", content: `m${i}` }));
+  let { infer, calls } = scriptedInfer();
+  await runTurn(body("and the next one?", { history: sitting(60) }), ctxWith(infer));
+  assert.equal(calls.chat[0].messages.length, 1 + 60 + 1, "the page, all 60, the new message");
+  ({ infer, calls } = scriptedInfer());
+  await runTurn(body("and the next one?", { history: sitting(130) }), ctxWith(infer));
+  const kept = calls.chat[0].messages.slice(1, -1);
+  assert.equal(kept.length, 100);
+  assert.equal(kept[0].content, "m30", "the oldest 30 dropped, still starting with the person");
+});
+
 test("the topic is sealed to the family's key and only the family can open it", async () => {
   const fam = generateKeyPairSync("x25519");
   const familyPublicKey = fam.publicKey.export({ type: "spki", format: "der" }).toString("base64");

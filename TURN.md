@@ -30,8 +30,10 @@ only host it can reach is `inference.tinfoil.sh`.
   an optional X25519 `familyPublicKey`, and per person `pronouns` (she, he or they; they by
   default), `age`, `homework` (`think-first` or `explain-and-check`; by band by default),
   `homeworkClause`, `webSearch`, `uploads` and `transcripts`.
-- **`history`** is the conversation so far, oldest first, kept on the person's device. It is
-  trimmed to the last 20 messages and 24,000 characters, and always starts with the person.
+- **`history`** is the conversation so far in this sitting, oldest first. The family app keeps it
+  only in the open page and sends all of it with each turn, so the model and the floor see the
+  whole sitting; a new sitting starts empty (since v0.5.2). It is trimmed to the last 100 messages
+  and 60,000 characters (about 15,000 tokens), oldest first, and always starts with the person.
 - The **clock** is the container's. Nothing in the request can move a kid's hours.
 - **`pass`** (since v0.4.0) is the family's pass, below. `/page` takes the same one.
 
