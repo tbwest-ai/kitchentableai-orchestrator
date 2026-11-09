@@ -9,7 +9,7 @@ import { NO_CAPABILITIES } from "../lib/compile.mjs";
 import { GIVE_UP_REPLY } from "../lib/judge.mjs";
 import { checkHonesty } from "../lib/honesty.mjs";
 import { resolve } from "../lib/agreement.mjs";
-import { POLICY, fastPolicy, riveraExport, riveraSetup, scriptedInfer, testSigner, TUESDAY_4PM } from "./helpers.mjs";
+import { POLICY, fastPolicy, riveraExport, riveraReading, riveraSetup, scriptedInfer, testSigner, TUESDAY_4PM } from "./helpers.mjs";
 
 const { signer } = testSigner();
 const ctxWith = (infer, over = {}) => ({ infer, signer, policy: POLICY, capabilities: NO_CAPABILITIES, clock: () => TUESDAY_4PM, cacheKey: "k", ...over });
@@ -36,7 +36,8 @@ test("/page fails closed like a turn", () => {
 });
 
 test("honesty: a chat that is not gone at once is left alone; one claimed gone at once is not", () => {
-  const v = resolve(riveraExport(), riveraSetup(), "id3");
+  // Maya with "Parents can read" on: the one case where "it's gone right away" is false.
+  const v = resolve(riveraExport(), riveraReading(), "id3");
   for (const ok of ["It isn't gone straight away.", "Nothing is deleted right away.", "It won't be deleted immediately."]) {
     assert.deepEqual(checkHonesty(ok, v).corrections, [], ok);
   }

@@ -24,6 +24,19 @@ the public key in the measured config; the synthetic sample family stays open fo
 and per-family and per-device limits cap the cost. The deployed config stays `ACCESS: "open"`
 until the family app issues passes.
 
+**v0.5.3 says what is really saved.** The page and the honesty check told every person that every
+chat was saved in the family's history for 30 days, and the check rewrote a true "this isn't
+saved" into that. Now, as the founder set it on 2026-11-09: no device keeps chat history, and each
+time someone opens their profile the chat starts fresh. An adult's chats are never saved and
+nobody in the family can read them. The family app keeps only how much they used it each day. A
+kid's words are saved only where the family turned on "Parents can read", locked so only a parent
+phone opens them, readable in the parent dashboard and deleted after 30 days (`retentionDays`).
+Every kid exchange leaves a locked summary, its topic and area, kept 35 days. The kid can't delete
+any of it, and turning "Parents can read" off deletes the saved chats. The honesty check corrects "this
+isn't saved" only for a kid whose parents can read (`test/history.test.mjs`). The band guide's refusal
+example for "Assuming anything we type into AI is stored" drops its clause about the family's
+history, on the founder's word, edited in this snapshot ahead of the builder's copy.
+
 **v0.5.2 takes the whole sitting** (TURN.md, `history`): up to 100 messages and 60,000
 characters, where it took 20 and 24,000. The family app now keeps a conversation only while it is
 open and sends all of it with each turn. (v0.5.1 was the deployed config turning the lock on, on

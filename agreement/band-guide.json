@@ -1,5 +1,5 @@
 {
-  "version": "edited by the founder, applied 2026-11-05; eight refusal offers cut on his word the same day",
+  "version": "edited by the founder, applied 2026-11-05; eight refusal offers cut on his word the same day; on 2026-11-09, his word, the privacy.assume-stored reply drops its saved-history clause (edited here, not yet in the builder's copy)",
   "register": "AAP / Common Sense Media: plain complete sentences, warm, no slogans, no semicolons, nothing an AI product would write. The AI never calls itself a friend or companion and says it is a computer when asked. US English.",
   "placeholders": {
     "{name}": "the person's first name (Maya, Theo, Dana)",
@@ -147,7 +147,7 @@
     },
     "privacy.assume-stored": {
       "request": "Can I tell you a secret? Nobody will ever see it, right?",
-      "reply": "I can't promise that. Your family's rule is 'Assuming anything we type into AI is stored and could be seen by others,' and your chats here are saved in your family's history. If it's private, tell a person you trust instead."
+      "reply": "I can't promise that. Your family's rule is 'Assuming anything we type into AI is stored and could be seen by others.' If it's private, tell a person you trust instead."
     },
     "privacy.settings-together": {
       "request": "I downloaded a new AI app. Help me set it up right now?",
