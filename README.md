@@ -24,6 +24,11 @@ the public key in the measured config; the synthetic sample family stays open fo
 and per-family and per-device limits cap the cost. The deployed config stays `ACCESS: "open"`
 until the family app issues passes.
 
+**v0.5.2 takes the whole sitting** (TURN.md, `history`): up to 100 messages and 60,000
+characters, where it took 20 and 24,000. The family app now keeps a conversation only while it is
+open and sends all of it with each turn. (v0.5.1 was the deployed config turning the lock on, on
+the v0.5.0 image.)
+
 **v0.5.0 adds notes for the parent phones** (TURN.md, "The sealed notes"): for a kid, the judge's
 topic and an area from a fixed list, and the chat itself where the family turned transcripts on,
 each sealed to the family's public half and named by its SHA-256 in the signed envelope. Abuse at
