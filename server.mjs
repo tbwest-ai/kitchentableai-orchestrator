@@ -37,7 +37,7 @@ import { NO_CAPABILITIES, PAGE_VERSION } from "./lib/compile.mjs";
 import { CONTENT_MODEL } from "./lib/agreement.mjs";
 import { PASS_ERRORS, checkPass, isSampleAgreement, makeLimits, parseAccessKeys } from "./lib/access.mjs";
 
-export const VERSION = "0.5.2";
+export const VERSION = "0.5.3";
 const HERE = dirname(fileURLToPath(import.meta.url));
 
 const PORT = Number(process.env.PORT ?? 8080);

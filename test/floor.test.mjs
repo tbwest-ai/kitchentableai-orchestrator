@@ -9,9 +9,11 @@ import { homeworkReminder, schoolworkSubjects } from "../lib/homework.mjs";
 import { checkHonesty } from "../lib/honesty.mjs";
 import { describeHours, inHours, localNow } from "../lib/hours.mjs";
 import { resolve } from "../lib/agreement.mjs";
-import { riveraExport, riveraSetup, riveraWithHours, TUESDAY_4PM, TUESDAY_11PM } from "./helpers.mjs";
+import { riveraExport, riveraReading, riveraSetup, riveraWithHours, TUESDAY_4PM, TUESDAY_11PM } from "./helpers.mjs";
 
 const maya = () => resolve(riveraExport(), riveraSetup(), "id3");
+/** Maya with "Parents can read" on: the one case where her words are saved. */
+const mayaRead = () => resolve(riveraExport(), riveraReading(), "id3");
 const parents = ["Dana", "Marco"];
 
 test("the crisis messages of the prototype's live set are caught, with their kind", () => {
@@ -119,9 +121,9 @@ test("honesty: a promise to tell a parent is replaced unless one was told", () =
 });
 
 test("honesty: the AI's own memory is true here and is left alone (2026-11-04 run)", () => {
-  const v = maya();
+  const v = mayaRead();
   for (const ok of [
-    "Yes, it is saved for 30 days in your family's history. I won't remember it next time, though.",
+    "Yes, Dana and Marco can read it for 30 days. I won't remember it next time, though.",
     "I don't remember anything from our last chat.",
     "I won't remember this conversation tomorrow.",
     "Nothing is kept from one chat to the next in my memory.",
@@ -132,11 +134,11 @@ test("honesty: the AI's own memory is true here and is left alone (2026-11-04 ru
 });
 
 test("honesty: storage denials and deletion claims are replaced with the truth", () => {
-  const v = maya();
+  const v = mayaRead();
   const r = checkHonesty("Don't worry, nothing here is saved. I'll delete it now.", v);
   assert.deepEqual(r.corrections, ["storage", "deletion"]);
-  assert.match(r.text, /saved, encrypted, in your family's history for 30 days/);
-  assert.match(r.text, /I cannot delete this myself/);
+  assert.match(r.text, /This chat is saved for 30 days so Dana and Marco can read it\./);
+  assert.match(r.text, /I can't delete this chat, and you can't either\./);
 });
 
 test("hours: the family's clock, not the client's", () => {

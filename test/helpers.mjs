@@ -25,6 +25,9 @@ export const riveraSetup = (over = {}) => ({
   ...over,
 });
 
+/** The same setup with "Parents can read Maya's chats" turned on. Theo's stays off. */
+export const riveraReading = (over = {}) => riveraSetup({ people: { ...riveraSetup().people, id3: { pronouns: "she", age: 9, transcripts: true } }, ...over });
+
 /** The Rivera export with Maya on the hours setting, after school on weekdays. */
 export function riveraWithHours() {
   const a = riveraExport();
