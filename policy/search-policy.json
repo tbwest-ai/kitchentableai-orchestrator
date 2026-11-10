@@ -1,12 +1,13 @@
 {
   "format": "kitchentableai-search-policy",
   "version": 1,
-  "about": "Web search (lib/search.mjs), configuration and never code. One search a turn. The daily limit counts searches sent, per family, by the family's own date; the synthetic sample family shares one small limit. Tinfoil's price was $0.05 a search on 2026-11-09, so 30 a day is at most $1.50 a family a day. These are cost guards for the founding test, set by hand. resultsAs says how the results reach the model: \"tool\" (a tool message after the model's own tool call) or \"user\" (next to the person's message). This file is inside the image, so a change here is a release.",
+  "about": "Web search (lib/search.mjs), configuration and never code. One search a turn. The daily limit counts searches sent, per family, by the family's own date; the synthetic sample family shares one small limit. Tinfoil's price was $0.05 a search on 2026-11-09, so 30 a day is at most $1.50 a family a day. These are cost guards for the founding test, set by hand. resultsAs says how the results reach the model: \"tool\" (a tool message after the model's own tool call) or \"user\" (next to the person's message). noLinkSites: a source on one of these sites is listed by title with no link; they are the search company's own summary pages, and on 2026-11-09 one of two such links was a 404 for a visitor. This file is inside the image, so a change here is a release.",
   "familySearchesPerDay": 30,
   "sampleSearchesPerDay": 10,
   "maxResults": 5,
   "maxContentChars": 700,
   "maxQueryChars": 200,
   "timeoutMs": 12000,
-  "resultsAs": "tool"
+  "resultsAs": "tool",
+  "noLinkSites": ["exa.ai"]
 }

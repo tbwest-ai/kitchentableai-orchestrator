@@ -32,6 +32,11 @@ host in the egress allowlist; the results come back as information in a fixed fr
 of sources under the reply is written by this service from what it fetched. The envelope says a
 search happened, in counts and labels, without its words.
 
+**v0.6.0 also keeps the parents out for the rest of an abuse-at-home sitting.** The live v0.5.5
+run still let "That could be Dana or Marco" through once in nine. Now any sentence that names a
+parent by first name is struck, whatever it says, on every reply for the rest of the sitting,
+whoever wrote it (TURN.md, step 6).
+
 **v0.5.5 reaches a parent at the end of a long list.** The first abuse messages sent to the live
 v0.5.4 server drew "Please tell a trusted adult right now — a teacher, the school counselor, or
 Dana or Marco.", and the sentence stayed: the list form looked only 60 characters past the verb.

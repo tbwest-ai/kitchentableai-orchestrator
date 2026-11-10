@@ -85,7 +85,7 @@ payload = { "v": 1, "aud": "kitchentableai-orchestrator", "fam": "...", "dev": "
 | 4 | The page is compiled (`lib/compile.mjs`, v2, five layers) with today's date. The homework reminder goes next to a schoolwork message. The band's model answers (`policy/model-policy.json`; GLM 5.3 at `low` for every band), with `gpt-oss-120b` as the fallback. | 3, 13, 15 |
 | 4b | **Web search** (since v0.6.0, below), for a person whose band and switch allow it: the model may ask for one search; names and personal details are taken out in code before it leaves; the results come back as information in a fixed frame; the model answers from them in a call with no tool to use; this service writes the list of sources. Not on a turn the crisis patterns matched. | decision 22 |
 | 5 | **A kid's reply is held** until `gpt-oss-safeguard-120b` has labeled the message and the reply. It is **replaced only on a safety label on the reply**: sexual, dangerous, companion drift, secrecy from parents. 3-second timeout, one retry, give up at 6 seconds and ask the kid to send it again. An empty verdict is not cleared. **A crisis never waits for the judge.** Adults are not judged. The judge's label on the message (danger, abuse, self-harm, homework…) is recorded in the envelope and **never adds words to the reply** (since v0.3.2: it read a fire and a school bully as danger and abuse). | judge, decision 18 |
-| 6 | The honesty check replaces a false promise ("I'm sending a message to your parent") or a false storage or deletion claim with the true sentence. "This isn't saved" is false only for a kid whose family turned on "Parents can read" (since v0.5.3): an adult's words are never saved, and a kid's are saved only then. Then, only when the measured crisis patterns matched the message, the crisis floor adds what the reply is missing: the parents by first name and 988; on abuse, 988 and an adult outside the home, never the parents; on distress, the parents by name. On abuse at home the floor also takes something out (since v0.5.4): any sentence that sends the kid to a parent, by name, by role ("your mom", "someone in your family", "a grown-up at home") or by saying a parent would want to know, whether the model wrote it or the honesty check did. It runs before the additions, so 988 or a teacher lost with a struck sentence comes back. A message that places the harm outside the home and names nobody in the family ("he hits me at school") keeps the parents. The page itself keeps 988 for self-harm, not wanting to be alive, abuse at home and real danger, sends ordinary trouble (a bully, a bad day) to the parents and a teacher, and sends an emergency happening now to 911. | 7, 9 |
+| 6 | The honesty check replaces a false promise ("I'm sending a message to your parent") or a false storage or deletion claim with the true sentence. "This isn't saved" is false only for a kid whose family turned on "Parents can read" (since v0.5.3): an adult's words are never saved, and a kid's are saved only then. Then, only when the measured crisis patterns matched the message, the crisis floor adds what the reply is missing: the parents by first name and 988; on abuse, 988 and an adult outside the home, never the parents; on distress, the parents by name. On abuse at home the floor also takes something out (since v0.5.4): any sentence that sends the kid to a parent, by name, by role ("your mom", "someone in your family", "a grown-up at home") or by saying a parent would want to know, whether the model wrote it or the honesty check did. It runs before the additions, so 988 or a teacher lost with a struck sentence comes back. A message that places the harm outside the home and names nobody in the family ("he hits me at school") keeps the parents. Since v0.6.0 the strike no longer reads for intent and no longer ends with the turn: **a sentence that names a parent by first name goes, whatever it says** (the live v0.5.5 run still let "That could be Dana or Marco" through once in nine), and the rule holds **for every reply for the rest of the sitting**, read from the kid's own earlier messages in the history the device sends: the model's reply, the judge's replacement, the hours and limit replies, the give-up line. Later distress or another crisis in that sitting gets the abuse help (988 and an adult outside the home) and wants no parent alert, and a message that is abuse at home and something else at once ("my dad hits me and I want to die") is treated as abuse at home. The page itself keeps 988 for self-harm, not wanting to be alive, abuse at home and real danger, sends ordinary trouble (a bully, a bad day) to the parents and a teacher, and sends an emergency happening now to 911. | 7, 9 |
 | 7 | The envelope is signed. For a kid, the topic and area, and the chat itself where the family turned transcripts on, are sealed to the family's public half when the setup carries one, and the envelope names each sealed note's SHA-256 (since v0.5.0). | 14 |
 
 ## The response
@@ -112,7 +112,7 @@ payload = { "v": 1, "aud": "kitchentableai-orchestrator", "fam": "...", "dev": "
 **The envelope is labels and counts, never words.** It carries the turn id and time, the family's
 and person's ids, the band, which page version and page hash, which model and whether the
 fallback answered, the outcome, the floor's findings (crisis kind and pattern label, which help
-sentences were added, whether a send-to-a-parent sentence was removed on abuse at home (`floor.removed`), whether the homework reminder went, which honesty corrections were made,
+sentences were added, whether a sentence that names a parent was removed on abuse at home (`floor.removed`), whether an earlier message in the sitting was abuse at home (`floor.abuse_earlier`), whether the homework reminder went, which honesty corrections were made,
 whether it was out of hours), the judge's labels, attempts and milliseconds, whether an alert was
 wanted, what a web search did in counts and labels (`search`, below), and token counts. No message, no reply, no page text, no names, and no hash of a message
 (a short message's hash can be guessed). The tests check that the envelope of a turn contains none
@@ -203,7 +203,12 @@ What happens on a turn for a person who has it:
 5. **This service writes the sources** (`withSources`). The model cites by number; a number that
    names no result is removed; a link the model wrote is replaced by its citation when it is one of
    the results and removed when it is not; a "Sources" list the model wrote is replaced by the real
-   one. When the model answered from results and cited none, the first three are listed.
+   one. When the model answered from results and cited none, the first three are listed. A source
+   on the search company's own site (`noLinkSites` in the policy: `exa.ai`) is listed by title with
+   no link and a null `url`: on 2026-11-09 one of two such links was a 404 for a visitor, and this
+   service cannot check a link. **A reply written with no search this turn carries no list**: on
+   the real model a follow-up came back with a "Sources" list of the model's own, copied from the
+   chat, and that list and its numbers are dropped (`search.own_list` in the envelope says so).
 6. **For a kid, the judge reads the reply with its sources**, held whole as on any turn. A replaced
    reply carries no sources. The honesty check reads the reply and not the list (a page title is
    not a claim by the AI).
@@ -226,7 +231,7 @@ offered, and a note next to the message tells the model to say that search is us
 
 ```json
 { "offered": true, "asked": 1, "ran": 1, "results": 3, "cited": 2, "removed": ["name"],
-  "filter": { "checked": true, "masked": false }, "outcome": "ok", "ms": 1240 }
+  "filter": { "checked": true, "masked": false }, "outcome": "ok", "own_list": false, "ms": 1240 }
 ```
 
 `outcome` is `none` (offered, not used), `ok`, `empty` (nothing found), `failed` (the search did

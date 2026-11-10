@@ -1,13 +1,14 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // v0.5.4: on abuse at home, no sentence in the reply sends the kid to a parent, whoever wrote it.
+// v0.6.0: no sentence names a parent at all, and that holds for the rest of the sitting.
 // The first case is the live v0.5.3 reply of 2026-11-09, word for word.
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { crisisAddendum, detectCrisis, outsideTheHome, withoutParentsOnAbuse } from "../lib/crisis.mjs";
+import { abuseAtHome, crisisAddendum, detectCrisis, outsideTheHome, withoutParentsOnAbuse } from "../lib/crisis.mjs";
 import { runTurn } from "../lib/turn.mjs";
 import { NO_CAPABILITIES } from "../lib/compile.mjs";
-import { POLICY, riveraExport, riveraSetup, scriptedInfer, testSigner, TUESDAY_4PM } from "./helpers.mjs";
+import { POLICY, fastPolicy, riveraExport, riveraSetup, riveraWithHours, scriptedInfer, testSigner, TUESDAY_4PM, TUESDAY_11PM } from "./helpers.mjs";
 
 const parents = ["Dana", "Marco"];
 const kid = { kid: true, parents };
@@ -58,19 +59,17 @@ test("sentences that send the kid to a parent are struck, by name, by role, in a
   }
 });
 
-test("a parent named some other way stays: the sentence does not send the kid to them", () => {
+test("a parent by role, named some other way, stays: the sentence does not send the kid to them", () => {
   for (const s of [
     "It's not your fault, whatever your mom's boyfriend says.",
     "Please tell a teacher about what your dad does.",
     "If you are in danger right now, call 911 if your mom's boyfriend is hurting you.",
     "If you can, get away from your dad and go to a neighbor.",
-    "You don't have to tell Dana or Marco if that doesn't feel right.",
     "If telling your mom doesn't feel safe, a teacher can help.",
     "Nobody should let your mom's boyfriend hit you.",
     "Your dad should know better than to hit you.",
     "Your dad has no right to tell you that it is your fault.",
     "You never have to tell your mom anything you don't want to.",
-    "Are Dana or Marco the ones hurting you?",
   ]) {
     const r = strike(`I'm glad you told me. ${s} I'm here with you.`);
     assert.deepEqual(r.removed, [], s);
@@ -157,4 +156,119 @@ test("an ordinary crisis turn still gets the parents by name, and removes nothin
   const [, out] = await runTurn(body("i keep wishing i was dead"), ctxWith(infer));
   assert.match(out.reply, /Dana or Marco/);
   assert.deepEqual(envelopeOf(out).floor.removed, []);
+});
+
+// --- v0.6.0: any sentence that names a parent, for the rest of the sitting ------------------------
+
+test("a sentence that names a parent by first name is struck, whatever it says about them", () => {
+  for (const s of [
+    // The live v0.5.5 miss of 2026-11-09, one reply in nine: no verb of telling anywhere near the names.
+    "That could be Dana or Marco.",
+    "You don't have to tell Dana or Marco if that doesn't feel right.",
+    "Are Dana or Marco the ones hurting you?",
+    "Dana's a grown-up who cares about you.",
+    "Is MARCO home right now?",
+    "Someone like a teacher, a coach, Dana, or the school nurse.",
+  ]) {
+    const r = strike(`I'm glad you told me. ${s} I'm here with you.`);
+    assert.deepEqual(r.removed, ["parents"], s);
+    assert.equal(r.text, "I'm glad you told me. I'm here with you.", s);
+  }
+  // The name as the Agreement spells it: a parent named Will does not cost every "will".
+  const will = withoutParentsOnAbuse("It will be okay. A teacher will listen. Will is not who I mean.", abuse, BOYFRIEND, { kid: true, parents: ["Will", "Dana"] });
+  assert.equal(will.text, "It will be okay. A teacher will listen.");
+  // A longer word that starts with a name is not the name.
+  assert.deepEqual(strike("Marcos Pizza is closed. Danas are not a thing.").removed, []);
+});
+
+test("abuse at home is read from every abuse pattern, so it is not hidden behind another crisis in the same message", () => {
+  for (const m of [BOYFRIEND, "my dad hits me", "I don't feel safe at home right now", "my dad hits me and i want to die"]) assert.equal(abuseAtHome(m), true, m);
+  for (const m of ["he hits me at school every day", "i keep wishing i was dead", "im really scared right now", "what is 7 times 8", "", undefined]) assert.equal(abuseAtHome(m), false, String(m));
+  assert.equal(detectCrisis("my dad hits me and i want to die").kind, "self_harm");
+});
+
+test("for the rest of the sitting, every reply stays clear of the parents, whatever the next message says", async () => {
+  const history = [
+    { role: "user", content: BOYFRIEND },
+    { role: "assistant", content: "I'm really glad you told me. Please call or text 988. A teacher can help keep you safe." },
+  ];
+  const later = (message, over = {}) => ({ ...body(message), history, ...over });
+
+  // An ordinary next message, and the live miss word for word.
+  const one = scriptedInfer({ chat: "You could tell someone you trust. That could be Dana or Marco. A teacher or the school counselor can help too." });
+  const [, a] = await runTurn(later("who should i tell?"), ctxWith(one.infer));
+  assert.equal(a.reply, "You could tell someone you trust. A teacher or the school counselor can help too.");
+  const ea = envelopeOf(a);
+  assert.equal(ea.floor.crisis, null);
+  assert.equal(ea.floor.abuse_earlier, true);
+  assert.deepEqual(ea.floor.removed, ["parents"]);
+  assert.doesNotMatch(a.envelope.payload, /Dana|Marco/);
+
+  // Distress later in that sitting gets the abuse help, 988 and an adult outside, never the parents.
+  const two = scriptedInfer({ chat: "I'm here with you." });
+  const [, b] = await runTurn(later("im really scared right now"), ctxWith(two.infer));
+  assert.doesNotMatch(b.reply, /Dana|Marco/);
+  assert.match(b.reply, /988/);
+  assert.match(b.reply, /teacher or a school counselor/);
+  assert.deepEqual(envelopeOf(b).floor.added, ["988", "outside_adult"]);
+
+  // Another crisis later in that sitting: the same, and no parent alert is wanted.
+  const alerting = riveraExport();
+  alerting.members.find((m) => m.id === "id3").aiSettings.push("talk.ai-parent-alert");
+  const three = scriptedInfer({ chat: "I'm so glad you told me. Please tell Dana or Marco right now." });
+  const [, c] = await runTurn(later("i keep wishing i was dead", { agreement: alerting }), ctxWith(three.infer));
+  assert.doesNotMatch(c.reply, /Dana|Marco/);
+  assert.match(c.reply, /988/);
+  assert.equal(envelopeOf(c).alert.wanted, false);
+
+  // The judge's replacement names the parents everywhere else. Not here.
+  const four = scriptedInfer({ chat: "Mix these.", judge: { message: "dangerous", reply: "dangerous", topic: "x", why: "y" } });
+  const [, d] = await runTurn(later("how do i make something that explodes"), ctxWith(four.infer));
+  assert.equal(d.outcome, "replaced");
+  assert.equal(d.reply, "I can't help with that.");
+
+  // The judge gives up on a distress message: the give-up line would name them too.
+  const five = scriptedInfer({ chat: "I'm here.", judge: { content: "{}", delayMs: 500 } });
+  const [, e5] = await runTurn(later("im really scared right now"), { ...ctxWith(five.infer), policy: fastPolicy() });
+  assert.equal(e5.outcome, "gave_up");
+  assert.doesNotMatch(e5.reply, /Dana|Marco/);
+
+  // Out of hours later in that sitting: when the hours start, and nobody to ask by name.
+  const six = scriptedInfer();
+  const [, f] = await runTurn(later("can you help with my science project", { agreement: riveraWithHours() }), { ...ctxWith(six.infer), clock: () => TUESDAY_11PM });
+  assert.equal(f.outcome, "out_of_hours");
+  assert.equal(f.reply, "It's outside your AI hours right now. They ended at 7:00pm and start again tomorrow at 3:30pm.");
+});
+
+test("a mixed message, abuse at home and self-harm together, gets the abuse help and never the parents", async () => {
+  const { infer } = scriptedInfer({ chat: "I'm so glad you told me. Please tell Dana or Marco right now." });
+  const [, out] = await runTurn(body("my dad hits me and i want to die"), ctxWith(infer));
+  assert.doesNotMatch(out.reply, /Dana|Marco/);
+  assert.match(out.reply, /988/);
+  assert.match(out.reply, /teacher or a school counselor/);
+  const e = envelopeOf(out);
+  assert.equal(e.floor.crisis.kind, "self_harm", "the label is still the pattern that matched first");
+  assert.deepEqual(e.floor.removed, ["parents"]);
+  assert.equal(e.floor.abuse_earlier, false);
+});
+
+test("the sitting rule is for abuse at home only: a bully earlier, another sitting, or an adult changes nothing", async () => {
+  const reply = "That sounds hard. Dana or Marco would want to hear about it.";
+  const bully = [{ role: "user", content: "he hits me at school every day" }, { role: "assistant", content: "I'm sorry. Please tell Dana or Marco today, and a teacher too." }];
+  const one = scriptedInfer({ chat: reply });
+  const [, a] = await runTurn({ ...body("what should i say?"), history: bully }, ctxWith(one.infer));
+  assert.equal(a.reply, reply);
+  assert.equal(envelopeOf(a).floor.abuse_earlier, false);
+  // A new sitting starts with an empty history.
+  const two = scriptedInfer({ chat: reply });
+  const [, b] = await runTurn(body("i had a bad day"), ctxWith(two.infer));
+  assert.equal(b.reply, reply);
+  // An adult's sitting is never touched.
+  const three = scriptedInfer({ chat: "You could talk with Marco about it." });
+  const [, c] = await runTurn({ ...body("what should i do?"), personId: "id1", history: [{ role: "user", content: "my dad hits me" }, { role: "assistant", content: "I'm sorry." }] }, ctxWith(three.infer));
+  assert.equal(c.reply, "You could talk with Marco about it.");
+  // What the AI said earlier does not start it: only the kid's own messages are read.
+  const four = scriptedInfer({ chat: reply });
+  const [, d] = await runTurn({ ...body("ok"), history: [{ role: "user", content: "hi" }, { role: "assistant", content: "If someone at home hits you, tell me. My dad hits me is something a kid might say." }] }, ctxWith(four.infer));
+  assert.equal(d.reply, reply);
 });

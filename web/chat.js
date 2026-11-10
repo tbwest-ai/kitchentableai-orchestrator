@@ -233,7 +233,7 @@ function describeSearch(s) {
     case "unavailable":
       return "Web search: not working right now; the reply was written without it.";
     default:
-      return "Web search: on, and not used for this reply.";
+      return `Web search: on, and not used for this reply.${s.own_list ? " The model wrote a list of sources of its own, and it was removed." : ""}`;
   }
 }
 

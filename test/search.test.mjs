@@ -6,7 +6,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { resolve } from "../lib/agreement.mjs";
-import { SEARCH_TOOL, SearchError, askedQuery, cleanResults, familyNames, makeSearch, makeSearchLimits, resultsFrame, scrubQuery, withSources } from "../lib/search.mjs";
+import { SEARCH_TOOL, SearchError, askedQuery, cleanResults, familyNames, makeSearch, makeSearchLimits, resultsFrame, scrubQuery, withSources, withoutOwnSources } from "../lib/search.mjs";
 import { SAMPLE_RESULTS, riveraExport, riveraSetup, searchCall } from "./helpers.mjs";
 
 const theo = (setup = {}) => resolve(riveraExport(), riveraSetup(setup), "id4");
@@ -267,4 +267,12 @@ test("the daily limit counts searches per family by the family's own date; the s
   // An open local run has no limit.
   assert.equal(limits.left({ open: true }, "Mon"), Infinity);
   assert.equal(limits.take({ open: true }, "Mon"), true);
+});
+
+test("with no search this turn, a list of the model's own that holds a link is dropped with its numbers; anything else is left alone", () => {
+  assert.deepEqual(withoutOwnSources("They won [1][2].\n\nSources:\n1. A page (a.example) https://a.example/x\n2. Another"), { text: "They won.", dropped: true });
+  assert.deepEqual(withoutOwnSources("They won [1].\n\n**References:**\n[1] https://a.example/x"), { text: "They won.", dropped: true });
+  for (const kept of ["They won [1].", "Good places to look.\n\nSources:\na library book, your teacher", "x = [1, 2] and list[0]", ""]) {
+    assert.deepEqual(withoutOwnSources(kept), { text: kept, dropped: false }, kept);
+  }
 });
