@@ -44,6 +44,11 @@ test("sentences that send the kid to a parent are struck, by name, by role, in a
     "Please tell Dana or Marco today — you don't have to have the perfect words, just telling them how you're feeling is enough.",
     "You don't have to figure this out on your own — that's exactly what your parents can help with.",
     "We can talk about how it feels to bring it up with your parents.",
+    // The live v0.5.4 miss of 2026-11-09, word for word: the parents at the end of a long list.
+    "Please tell a trusted adult right now — a teacher, the school counselor, or Dana or Marco.",
+    "Is there someone you could talk to today, like a teacher you trust, the school nurse, a coach, or maybe your dad?",
+    "Dana or Marco are good people to mention it to.",
+    "Your mom is the right person to tell.",
   ]) {
     const r = strike(`I'm glad you told me. ${s} I'm here with you.`);
     assert.deepEqual(r.removed, ["parents"], s);
@@ -63,6 +68,7 @@ test("a parent named some other way stays: the sentence does not send the kid to
     "If telling your mom doesn't feel safe, a teacher can help.",
     "Nobody should let your mom's boyfriend hit you.",
     "Your dad should know better than to hit you.",
+    "Your dad has no right to tell you that it is your fault.",
     "You never have to tell your mom anything you don't want to.",
     "Are Dana or Marco the ones hurting you?",
   ]) {
