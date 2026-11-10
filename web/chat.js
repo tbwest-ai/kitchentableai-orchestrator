@@ -212,6 +212,31 @@ async function seePage() {
 
 // --- the chat ----------------------------------------------------------------------------------
 
+/** What the envelope says about web search: counts and labels. The search words are not in it. */
+function describeSearch(s) {
+  if (!s) return "Web search: not on for this person.";
+  const removed = s.removed?.length ? ` Taken out before it left: ${s.removed.join(", ")}.` : "";
+  const filter = s.filter ? ` Tinfoil's privacy filter ${s.filter.checked ? (s.filter.masked ? "ran and removed something" : "ran and removed nothing") : "did not run"}.` : "";
+  switch (s.outcome) {
+    case "ok":
+      return `Web search: one search, ${s.results} ${s.results === 1 ? "result" : "results"}, ${s.cited} cited, ${s.ms} ms.${removed}${filter}`;
+    case "empty":
+      return `Web search: one search, nothing found, ${s.ms} ms.${removed}${filter}`;
+    case "failed":
+      return `Web search: asked for, and the search did not come back.${removed}`;
+    case "scrubbed_empty":
+      return `Web search: asked for, and not sent, because nothing was left once names and personal details were taken out.${removed}`;
+    case "limit":
+      return "Web search: the family's searches for today are used up.";
+    case "crisis":
+      return "Web search: not offered on this turn (the crisis patterns matched).";
+    case "unavailable":
+      return "Web search: not working right now; the reply was written without it.";
+    default:
+      return "Web search: on, and not used for this reply.";
+  }
+}
+
 /** What the labels in a signed envelope say, in plain words. No words of the chat are in it. */
 function describe(env, check, timing) {
   const out = [];
@@ -227,10 +252,11 @@ function describe(env, check, timing) {
   if (f.added?.length) out.push(`The floor added: ${f.added.join(", ")}.`);
   if (f.homework_reminder) out.push("The homework reminder went with the message.");
   if (f.honesty?.length) out.push(`The honesty check corrected: ${f.honesty.join(", ")}.`);
+  out.push(describeSearch(env.search));
   out.push(env.alert?.wanted ? "A parent alert is wanted; this build does not deliver alerts yet." : "No parent alert.");
   const u = env.usage?.chat;
   if (u) out.push(`Tokens: ${u.prompt_tokens} in${u.prompt_tokens_details?.cached_tokens ? ` (${u.prompt_tokens_details.cached_tokens} cached)` : ""}, ${u.completion_tokens} out.`);
-  if (timing) out.push(`${timing.total_ms} ms inside the enclave (model ${timing.model_ms ?? "–"}, judge ${timing.judge_ms ?? "–"}).`);
+  if (timing) out.push(`${timing.total_ms} ms inside the enclave (model ${timing.model_ms ?? "–"}, ${timing.search_ms != null ? `search ${timing.search_ms}, ` : ""}judge ${timing.judge_ms ?? "–"}).`);
   out.push(check ? (check.ok ? `Envelope and receipt verified with the enclave's key (${check.keySource}).` : `SIGNATURE CHECK FAILED: ${check.notes.join("; ")}`) : "Signatures not checked in this browser.");
   return out;
 }

@@ -15,14 +15,24 @@ cpus: 2
 memory: 8192
 
 networks:
-  # The only host the container may reach is the inference API, for the chat model and the
-  # judge alike. There is deliberately no entry for our own control plane yet: in this build the
-  # family's device sends the Agreement with each turn, and the signed envelope goes back to the
-  # device, not to a server of ours.
+  # The container may reach two hosts, both Tinfoil enclaves, and nothing else.
+  #
+  # inference.tinfoil.sh: the inference API, for the chat model and the judge alike.
+  #
+  # websearch.tinfoil.sh (since v0.6.0): Tinfoil's confidential web search server, for a person
+  # whose family has web search on. What goes to it is a few search words, after this service has
+  # taken out every name in the family and the personal details it can recognize (lib/search.mjs).
+  # That enclave sends the words on to Exa, a search company under a no-retention contract: this
+  # is the one place a family's words leave attested hardware, and the product says so.
+  #
+  # There is deliberately no entry for our own control plane: the family's device sends the
+  # Agreement with each turn, and the signed envelope goes back to the device, not to a server of
+  # ours. (The network keeps its first name; it now carries both hosts.)
   inference:
     egress: allowlist
     allow:
       - inference.tinfoil.sh
+      - websearch.tinfoil.sh
 
 containers:
   - name: "orchestrator"
@@ -32,6 +42,12 @@ containers:
     env:
       - PORT: "8080"
       - INFERENCE_URL: "https://inference.tinfoil.sh/v1/chat/completions"
+      # Web search (since v0.6.0). Naming the search host here is what turns search on: without
+      # this line the compiled page says the AI cannot search, and that is true. Who gets it is the
+      # family's choice by age band and per-person switch; the limits are in
+      # policy/search-policy.json inside the image (30 searches a family a day). /health reports
+      # the host.
+      - SEARCH_URL: "https://websearch.tinfoil.sh/mcp"
       # Which model answers each age band, and which judges a kid's turn, live in
       # policy/model-policy.json inside the image (GLM 5.3 for every band at "low", its floor;
       # gpt-oss-safeguard-120b as the judge, 3 s timeout, one retry, give up at 6 s).

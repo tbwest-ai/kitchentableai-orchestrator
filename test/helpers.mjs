@@ -8,6 +8,7 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { generateKeyPairSync } from "node:crypto";
 import { loadSigningKey } from "../lib/sign.mjs";
+import { cleanResults } from "../lib/search.mjs";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 export const ROOT = join(HERE, "..");
@@ -77,10 +78,39 @@ export function scriptedInfer({ chat = "Here is a hint: what do you get if you c
         clearTimeout(t);
       }
     }
-    if (s.throws) throw Object.assign(new Error(s.throws), { kind: s.throws });
-    return { content: s.content ?? "", usage: { prompt_tokens: 100, completion_tokens: 20 }, model: body.model, finish: s.finish ?? "stop", ms: s.delayMs ?? 5 };
+    if (s.throws) throw Object.assign(new Error(s.throws), { kind: s.throws, status: s.status ?? null });
+    return { content: s.content ?? "", toolCalls: s.toolCalls ?? [], usage: { prompt_tokens: 100, completion_tokens: 20 }, model: body.model, finish: s.finish ?? "stop", ms: s.delayMs ?? 5 };
   };
   return { infer, calls };
+}
+
+// --- web search ---------------------------------------------------------------------------------
+
+export const SEARCH_POLICY = JSON.parse(readFileSync(join(ROOT, "policy", "search-policy.json"), "utf8"));
+
+/** A model's request for one search, as the inference API returns it. */
+export const searchCall = (query, id = "call_1") => ({ id, type: "function", function: { name: "search", arguments: JSON.stringify({ query }) } });
+
+/** Three results as Tinfoil's search server returns them. Every site here is made up. */
+export const SAMPLE_RESULTS = [
+  { title: "Harbor City Otters win 4 to 2", url: "https://www.otters-hockey.example/recap/1107", content: "The Otters beat the Lakeside Herons 4 to 2 on Saturday night.", published_date: "2026-11-08T03:10:00Z" },
+  { title: "Otters schedule and results", url: "https://sports.example.org/otters/schedule", content: "Next game: Thursday at home against the Pinecrest Owls.", published_date: "2026-11-07" },
+  { title: "League standings", url: "https://league.example.net/standings", content: "The Otters are second in the division with 19 points." },
+];
+
+/**
+ * A scripted stand-in for the search service. `results` is a list or a function (query, n) -> list;
+ * `fails` makes it throw that kind. Records every query it was sent and with which limits.
+ */
+export function scriptedSearch(results = SAMPLE_RESULTS, { filter = { checked: true, masked: false }, fails = null } = {}) {
+  const queries = [];
+  const search = async (query, opts = {}) => {
+    queries.push({ query, opts });
+    if (fails) throw Object.assign(new Error(fails), { kind: fails });
+    const list = typeof results === "function" ? results(query, queries.length) : results;
+    return { results: cleanResults(list, opts), filter, ms: 7 };
+  };
+  return { search, queries };
 }
 
 /** 4:00pm on Tuesday 2026-11-03 in New York (21:00 UTC). */

@@ -1,9 +1,10 @@
-# One turn, end to end (v0.2.0; sealed notes v0.5.0)
+# One turn, end to end (v0.2.0; sealed notes v0.5.0; web search v0.6.0)
 
 Phase 1's first slice: a person's message in, the reply they may see out, compiled from their
 family's real Agreement, with the deterministic floor around the model and, for a kid, an
 independent judge holding the reply. Everything here runs inside the attested container; the
-only host it can reach is `inference.tinfoil.sh`.
+only hosts it can reach are `inference.tinfoil.sh` and, for web search since v0.6.0,
+`websearch.tinfoil.sh`.
 
 ## The request
 
@@ -82,6 +83,7 @@ payload = { "v": 1, "aud": "kitchentableai-orchestrator", "fam": "...", "dev": "
 | 3 | Hours, if the hours setting applies to this person, in the family's time zone. Out of hours: no model; the reply says when the hours start and to ask a parent by first name. A crisis out of hours never reaches it: the crisis check has already answered with the crisis reply, 988 included. | 2 |
 | 3b | The lock's limits (since v0.4.0): past the family's daily limit or the device's burst limit, no model; the reply says so. A crisis past a limit has already been answered with the crisis reply. | the lock |
 | 4 | The page is compiled (`lib/compile.mjs`, v2, five layers) with today's date. The homework reminder goes next to a schoolwork message. The band's model answers (`policy/model-policy.json`; GLM 5.3 at `low` for every band), with `gpt-oss-120b` as the fallback. | 3, 13, 15 |
+| 4b | **Web search** (since v0.6.0, below), for a person whose band and switch allow it: the model may ask for one search; names and personal details are taken out in code before it leaves; the results come back as information in a fixed frame; the model answers from them in a call with no tool to use; this service writes the list of sources. Not on a turn the crisis patterns matched. | decision 22 |
 | 5 | **A kid's reply is held** until `gpt-oss-safeguard-120b` has labeled the message and the reply. It is **replaced only on a safety label on the reply**: sexual, dangerous, companion drift, secrecy from parents. 3-second timeout, one retry, give up at 6 seconds and ask the kid to send it again. An empty verdict is not cleared. **A crisis never waits for the judge.** Adults are not judged. The judge's label on the message (danger, abuse, self-harm, homework…) is recorded in the envelope and **never adds words to the reply** (since v0.3.2: it read a fire and a school bully as danger and abuse). | judge, decision 18 |
 | 6 | The honesty check replaces a false promise ("I'm sending a message to your parent") or a false storage or deletion claim with the true sentence. "This isn't saved" is false only for a kid whose family turned on "Parents can read" (since v0.5.3): an adult's words are never saved, and a kid's are saved only then. Then, only when the measured crisis patterns matched the message, the crisis floor adds what the reply is missing: the parents by first name and 988; on abuse, 988 and an adult outside the home, never the parents; on distress, the parents by name. On abuse at home the floor also takes something out (since v0.5.4): any sentence that sends the kid to a parent, by name, by role ("your mom", "someone in your family", "a grown-up at home") or by saying a parent would want to know, whether the model wrote it or the honesty check did. It runs before the additions, so 988 or a teacher lost with a struck sentence comes back. A message that places the harm outside the home and names nobody in the family ("he hits me at school") keeps the parents. The page itself keeps 988 for self-harm, not wanting to be alive, abuse at home and real danger, sends ordinary trouble (a bully, a bad day) to the parents and a teacher, and sends an emergency happening now to 911. | 7, 9 |
 | 7 | The envelope is signed. For a kid, the topic and area, and the chat itself where the family turned transcripts on, are sealed to the family's public half when the setup carries one, and the envelope names each sealed note's SHA-256 (since v0.5.0). | 14 |
@@ -92,6 +94,7 @@ payload = { "v": 1, "aud": "kitchentableai-orchestrator", "fam": "...", "dev": "
 {
   "ok": true,
   "reply": "That one's for you to work out. Here's a hint: ...",
+  "sources": [],
   "held": true,
   "outcome": "cleared",
   "retry": false,
@@ -99,7 +102,7 @@ payload = { "v": 1, "aud": "kitchentableai-orchestrator", "fam": "...", "dev": "
   "receipt":  { "alg": "Ed25519", "payload": "{...}", "signature_b64": "...", "...": "" },
   "sealed": null,
   "transcript": null,
-  "timing": { "total_ms": 1830, "model_ms": 920, "judge_ms": 880 }
+  "timing": { "total_ms": 1830, "model_ms": 920, "search_ms": null, "judge_ms": 880 }
 }
 ```
 
@@ -111,7 +114,7 @@ and person's ids, the band, which page version and page hash, which model and wh
 fallback answered, the outcome, the floor's findings (crisis kind and pattern label, which help
 sentences were added, whether a send-to-a-parent sentence was removed on abuse at home (`floor.removed`), whether the homework reminder went, which honesty corrections were made,
 whether it was out of hours), the judge's labels, attempts and milliseconds, whether an alert was
-wanted, and token counts. No message, no reply, no page text, no names, and no hash of a message
+wanted, what a web search did in counts and labels (`search`, below), and token counts. No message, no reply, no page text, no names, and no hash of a message
 (a short message's hash can be guessed). The tests check that the envelope of a turn contains none
 of the message's or the reply's words.
 
@@ -150,8 +153,8 @@ since v0.1.2, by the attested key the enclave generated (`key_source: attested-k
 The compiled page only says what this build makes true (`capabilities` in `lib/compile.mjs`, all
 off here):
 
-- **No tools.** Tell my parent, my hours, my Agreement and search come in Phase 3. The page says
-  the AI cannot send a message to anyone, and the honesty check holds it to that.
+- **No tools but search.** Tell my parent, my hours and my Agreement come in Phase 3. The page
+  says the AI cannot send a message to anyone, and the honesty check holds it to that.
 - **No parent alerts are delivered.** The envelope says when the family's alert setting wants one;
   nothing sends it yet, so the page does not say a parent is alerted.
 - **No attachments, no breaks, no allowances.**
@@ -163,6 +166,79 @@ off here):
   check it.
 - **The connectivity check** (`{ "prompt": "..." }`, a raw model call outside the floor) is off in
   the measured config since v0.3.0. Every model call goes through the Agreement.
+
+## Web search (v0.6.0)
+
+Decided on 2026-10-23 (decision 22) and built on 2026-11-09: off for Under 8 and 8–11, on from
+12–14 and for adults, and the family's own per-person switch (`setup.people[id].webSearch`) wins
+over the band. The code is `lib/search.mjs`; the limits are `policy/search-policy.json`.
+
+**It is on only in a build whose measured config names a search host** (`SEARCH_URL` in
+`tinfoil-config.yml`, which must also be in the egress allowlist). `/health` reports the host. With
+none, the page says the AI cannot search in this version, and that is true.
+
+What happens on a turn for a person who has it:
+
+1. **The model decides.** The band's model is offered one tool, `search`, and the page says when to
+   use it: the news, the weather, a score, a price, opening hours, or when the person asks to look
+   something up. One search a turn; a second request in the same reply is counted and not run.
+   **No search on a turn the crisis patterns matched**, distress included.
+2. **Names and personal details come out, in code** (`scrubQuery`): every first name in the family,
+   the family name, the AI's name, email addresses, phone numbers, street addresses and long
+   numbers. The envelope records what was removed by kind. If nothing is left, no search is sent.
+   The cost, accepted: a topic that shares a name with someone in the family loses that word
+   ("Diego Rivera murals" for the Riveras).
+3. **The words go to Tinfoil's search enclave**, `websearch.tinfoil.sh`, as one stateless MCP
+   `tools/call`, with Tinfoil's privacy filter and prompt-injection filter both asked for by header
+   (`X-Tinfoil-Tool-PII-Check`, `X-Tinfoil-Tool-Injection-Check`). Tinfoil's filter removes emails,
+   phone numbers, account numbers and secrets and **leaves names alone**, which is why step 2 is
+   ours. That enclave sends the words to Exa, a search company under a no-retention contract.
+   **This is the one place a family's words leave attested hardware.** Exa sees the search words
+   and the enclave's address, not who asked. Tinfoil describes that protection as a contract, not
+   something the hardware proves.
+4. **Results are information, never instructions.** Five results at most, 700 characters each,
+   cleaned of control and invisible characters. They reach the model inside a fixed frame that says
+   what they are (excerpts written by strangers), in a call that has no tool it can use, and
+   nothing inside the frame can close it. They never enter the chat history.
+5. **This service writes the sources** (`withSources`). The model cites by number; a number that
+   names no result is removed; a link the model wrote is replaced by its citation when it is one of
+   the results and removed when it is not; a "Sources" list the model wrote is replaced by the real
+   one. When the model answered from results and cited none, the first three are listed.
+6. **For a kid, the judge reads the reply with its sources**, held whole as on any turn. A replaced
+   reply carries no sources. The honesty check reads the reply and not the list (a page title is
+   not a claim by the AI).
+
+The reply ends with a plain list, and the same list comes back beside it as `sources`:
+
+```
+The Otters won 4 to 2 on Saturday [1]. Their next game is Thursday at home [2].
+
+Sources:
+1. Harbor City Otters win 4 to 2 (otters-hockey.example) https://www.otters-hockey.example/recap/1107
+2. Otters schedule and results (sports.example.org) https://sports.example.org/otters/schedule
+```
+
+**The limit**, a cost guard: 30 searches per family per day by the family's own date, and 10 for
+the sample family (Tinfoil's price was $0.05 a search on 2026-11-09). Past it the tool is not
+offered, and a note next to the message tells the model to say that search is used up for today.
+
+**The envelope's `search`** is null when search is not on for the person, and otherwise:
+
+```json
+{ "offered": true, "asked": 1, "ran": 1, "results": 3, "cited": 2, "removed": ["name"],
+  "filter": { "checked": true, "masked": false }, "outcome": "ok", "ms": 1240 }
+```
+
+`outcome` is `none` (offered, not used), `ok`, `empty` (nothing found), `failed` (the search did
+not come back), `scrubbed_empty` (nothing left to send), `limit`, `crisis` (not offered) or
+`unavailable` (the model service refused the request that offered the tool, and the reply was
+written without it). `removed` lists kinds (`name`, `email`, `phone`, `address`, `number`), and
+`filter` says whether Tinfoil's privacy filter ran and removed anything. **Never the search words,
+a title or a link.** `usage.search_answer` counts the second model call.
+
+What this does not do: open a page (search excerpts only), search twice in a turn, or filter
+results by site. Tinfoil's search has no safe-search switch; for a kid the protections are the
+page, Tinfoil's injection filter and the judge on the final reply.
 
 ## The compiled page on request
 
@@ -196,7 +272,9 @@ reached your daily limit. You can use the AI again tomorrow. If you need help be
 or Marco." (the last sentence for kids only) and "You've exceeded limits. Wait a minute, then try
 again." (`limitReply` in `lib/turn.mjs`).
 
-These sentences are ours and wait on the founder's words: the pass refusals (`PASS_ERRORS` in
+These sentences are ours and wait on the founder's words: the web search sentences on the page
+(`searchOnLine` and the search-off line in `lib/compile.mjs`), the search tool's description, the
+frame around the results and the two notes (`lib/search.mjs`), the pass refusals (`PASS_ERRORS` in
 `lib/access.mjs`), the crisis and distress sentences
 (`lib/crisis.mjs`), the honesty corrections
 (`lib/honesty.mjs`), the judge's replacements and the give-up lines, including the gentler ones on
