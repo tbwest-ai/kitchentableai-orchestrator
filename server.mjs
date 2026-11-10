@@ -6,7 +6,7 @@
 // the deterministic floor, asks the band's model, holds a kid's reply until an independent judge
 // has read it, and returns the reply with a signed envelope of labels (never words).
 //
-//   GET  /health   liveness: version, key source, models, inference host. No secrets.
+//   GET  /health   liveness: version, key source, models, inference host, search host, alert host. No secrets.
 //   POST /turn     one turn (lib/turn.mjs): { agreement, setup, personId, pass, history?, message }.
 //                  `pass` is the family's signed pass (lib/access.mjs); the synthetic sample
 //                  family needs none. /page takes the same pass.
@@ -36,8 +36,10 @@ import { pageFor, runTurn } from "./lib/turn.mjs";
 import { NO_CAPABILITIES, PAGE_VERSION } from "./lib/compile.mjs";
 import { CONTENT_MODEL } from "./lib/agreement.mjs";
 import { PASS_ERRORS, checkPass, isSampleAgreement, makeLimits, parseAccessKeys } from "./lib/access.mjs";
+import { makeSearch, makeSearchLimits } from "./lib/search.mjs";
+import { makeAlertSender } from "./lib/alert.mjs";
 
-export const VERSION = "0.5.5";
+export const VERSION = "0.6.0";
 const HERE = dirname(fileURLToPath(import.meta.url));
 
 const PORT = Number(process.env.PORT ?? 8080);
@@ -73,7 +75,37 @@ try {
 }
 const ACCESS_MODE = process.env.ACCESS === "open" ? "open" : ACCESS_KEYS.length ? "passes" : "sample-only";
 const limits = makeLimits(ACCESS_POLICY);
-const ctx = { infer, signer, policy: POLICY, capabilities: NO_CAPABILITIES, clock, cacheKey: process.env.TINFOIL_API_KEY ?? null, limits };
+
+// Web search (lib/search.mjs, since v0.6.0). It is on only when the measured config names the
+// search host in SEARCH_URL, which must also be in the egress allowlist; with none, the page says
+// the AI cannot search in this version, and that is true. /health reports the host.
+const SEARCH_URL = (process.env.SEARCH_URL ?? "").trim();
+const SEARCH_POLICY = JSON.parse(readFileSync(process.env.SEARCH_POLICY_PATH ?? join(HERE, "policy", "search-policy.json"), "utf8"));
+const search = SEARCH_URL ? makeSearch({ url: SEARCH_URL, apiKey: process.env.TINFOIL_API_KEY }) : null;
+
+// The parent alert (lib/alert.mjs, since v0.6.0). It reaches a parent only when the measured config
+// names the family account's address in ALERT_URL, which must also be in the egress allowlist;
+// with none, an alert is still marked as wanted and handed to the kid's device, and the page does
+// not say a parent is alerted. What goes there is a signed event (ids and a time) and a note only
+// a parent's phone can open. /health reports the host.
+const ALERT_URL = (process.env.ALERT_URL ?? "").trim();
+const ALERT_POLICY = JSON.parse(readFileSync(process.env.ALERT_POLICY_PATH ?? join(HERE, "policy", "alert-policy.json"), "utf8"));
+const alert = ALERT_URL ? makeAlertSender({ url: ALERT_URL }) : null;
+const capabilities = Object.freeze({ ...NO_CAPABILITIES, search: Boolean(search), alerts: Boolean(alert) });
+const ctx = {
+  infer,
+  signer,
+  policy: POLICY,
+  capabilities,
+  clock,
+  cacheKey: process.env.TINFOIL_API_KEY ?? null,
+  limits,
+  search,
+  searchPolicy: SEARCH_POLICY,
+  searchLimits: makeSearchLimits(SEARCH_POLICY),
+  alert,
+  alertPolicy: ALERT_POLICY,
+};
 
 /** Who may run this request: { who } to go ahead, or [status, body] to refuse. */
 function admit(body) {
@@ -152,6 +184,11 @@ function health() {
       judge: POLICY.judge.model,
       reasoning_effort: POLICY.bands["8–11"].reasoningEffort,
       inference_host: new URL(INFERENCE_URL).host,
+      // Web search: the host it goes to, or null when this build cannot search.
+      search_host: SEARCH_URL ? new URL(SEARCH_URL).host : null,
+      searches_per_family_per_day: SEARCH_URL ? SEARCH_POLICY.familySearchesPerDay : null,
+      // The parent alert: the family account's host it goes to, or null when this build cannot send one.
+      alert_host: ALERT_URL ? new URL(ALERT_URL).host : null,
       api_key_present: Boolean(process.env.TINFOIL_API_KEY),
       connectivity_turn: CONNECTIVITY_TURN,
       access: ACCESS_MODE,
@@ -240,7 +277,7 @@ const server = createServer(async (req, res) => {
 server.listen(PORT, HOST, () => {
   console.log(
     `kitchentableai-orchestrator ${VERSION} listening on ${HOST}:${PORT} page=${PAGE_VERSION} ` +
-      `judge=${POLICY.judge.model} inference=${new URL(INFERENCE_URL).host} key_source=${signer.source} ` +
+      `judge=${POLICY.judge.model} inference=${new URL(INFERENCE_URL).host} search=${SEARCH_URL ? new URL(SEARCH_URL).host : "off"} alert=${ALERT_URL ? new URL(ALERT_URL).host : "off"} key_source=${signer.source} ` +
       `api_key=${process.env.TINFOIL_API_KEY ? "present" : "absent"} connectivity_turn=${CONNECTIVITY_TURN ? "on" : "off"} ` +
       `access=${ACCESS_MODE}${ACCESS_MODE === "passes" ? `(${ACCESS_KEYS.length} key${ACCESS_KEYS.length === 1 ? "" : "s"})` : ""}`,
   );

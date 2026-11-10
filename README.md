@@ -24,6 +24,29 @@ the public key in the measured config; the synthetic sample family stays open fo
 and per-family and per-device limits cap the cost. The deployed config stays `ACCESS: "open"`
 until the family app issues passes.
 
+**v0.6.0 adds web search** (`lib/search.mjs`; TURN.md, "Web search"): off under 12, on from 12
+and for adults, with the family's per-person switch. The model asks through one tool; this service
+takes every family name and the personal details it can recognize out of the search words before
+they leave; the words go to Tinfoil's search enclave, `websearch.tinfoil.sh`, a second host in the
+egress allowlist; the results come back as information in a fixed frame; and the list
+of sources under the reply is written by this service from what it fetched. The envelope says a
+search happened, in counts and labels, without its words.
+
+**v0.6.0 adds the parent alert** (`lib/alert.mjs`; TURN.md, "The parent alert"): when a kid's
+message is self-harm or danger, by the crisis patterns or by the judge's label, this service tells
+the family's account before it answers the kid, with a signed event that holds no word of the
+chat and a reason only a parent's phone can open, and the kid's reply says a parent is being told
+only when the account took it. Every kid, whatever the Agreement says. Never on abuse: before any
+alert leaves, one question to the safeguard model over the kid's messages in the sitting asks
+whether the trouble is at home, and yes or no answer means no alert. The family account's address,
+`www.familyaiagreement.com`, is the third host in the egress allowlist, and the alert is the only
+thing this service sends to a server of ours.
+
+**v0.6.0 also keeps the parents out for the rest of an abuse-at-home sitting.** The live v0.5.5
+run still let "That could be Dana or Marco" through once in nine. Now any sentence that names a
+parent by first name is struck, whatever it says, on every reply for the rest of the sitting,
+whoever wrote it (TURN.md, step 6).
+
 **v0.5.5 reaches a parent at the end of a long list.** The first abuse messages sent to the live
 v0.5.4 server drew "Please tell a trusted adult right now — a teacher, the school counselor, or
 Dana or Marco.", and the sentence stayed: the list form looked only 60 characters past the verb.
@@ -98,6 +121,8 @@ lab/cloud-orchestrator/
 │                              synthetic sample family (sample-export.json) the lock admits without a pass
 ├── policy/model-policy.json   which model answers each age band; the judge and its tail
 ├── policy/access-policy.json  the lock's pass lifetime and limits
+├── policy/search-policy.json  web search: the daily limit, how many results, how they reach the model
+├── policy/alert-policy.json   the parent alert: how long the account has to take it, and the question asked first
 ├── package.json, package-lock.json   scripts; two dev dependencies (the tinfoil SDK and esbuild,
 │                              pinned exactly) used only to bundle the test page. The image installs nothing.
 ├── Dockerfile                 digest-pinned node:24.14.1-alpine3.23, runs as `node`
@@ -109,7 +134,7 @@ lab/cloud-orchestrator/
 │   ├── tinfoil-release.yml      tags a version and dispatches the publish workflow
 │   └── tinfoil-release-publish.yml  measures, attests and publishes (measure-image-action)
 ├── scripts/
-│   ├── dev.mjs                  local run: mock inference + service + both pages
+│   ├── dev.mjs                  local run: mock inference, search and family account + service + both pages
 │   ├── build-image.mjs          builds twice with BuildKit and compares the digests
 │   ├── make-signing-key.mjs     makes the Ed25519 key for the managed-secret fallback
 │   ├── make-access-key.mjs      makes the family app's access key pair (the lock)
@@ -118,8 +143,14 @@ lab/cloud-orchestrator/
 │   ├── orchestrator.test.mjs    the HTTP contract: health, pubkey, a turn, the page, the connectivity check, key sources
 │   ├── compile.test.mjs, floor.test.mjs, turn.test.mjs, page.test.mjs   the page, each floor item, whole turns, /page
 │   ├── access.test.mjs, lock.test.mjs   the lock: passes, limits, and the server end to end
-│   ├── helpers.mjs              the sample family, a setup, a scripted model and judge
-│   └── mock-inference.mjs       a stand-in for inference.tinfoil.sh (local only)
+│   ├── search.test.mjs, search-turn.test.mjs, search-server.test.mjs   web search: the scrub, the request,
+│   │                            the frame and the sources; whole turns; the server end to end
+│   ├── helpers.mjs              the sample family, a setup, a scripted model, judge and search
+│   ├── alert.test.mjs, alert-server.test.mjs   the parent alert: what sets it off, what is sent, what the kid
+│   │                            is told, never on abuse; the server end to end
+│   ├── mock-inference.mjs       a stand-in for inference.tinfoil.sh (local only)
+│   ├── mock-search.mjs          a stand-in for websearch.tinfoil.sh (local only)
+│   └── mock-alert.mjs           a stand-in for the family account's alert address (local only)
 └── web/
     ├── index.html, app.js       the browser check page (runs the `tinfoil` SDK's verifier)
     ├── chat.html, chat.js       the test chat for the founder's own family (v0.3.0)

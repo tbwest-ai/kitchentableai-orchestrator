@@ -8,6 +8,7 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { generateKeyPairSync } from "node:crypto";
 import { loadSigningKey } from "../lib/sign.mjs";
+import { cleanResults } from "../lib/search.mjs";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 export const ROOT = join(HERE, "..");
@@ -55,19 +56,23 @@ const sleep = (ms, signal) =>
   });
 
 /**
- * A scripted inference API. `chat` and `judge` are each a function (body, n) -> { content, delayMs? }
- * or a value; `n` counts calls of that kind. Records every body it was sent.
+ * A scripted inference API. `chat`, `judge` and `homeCheck` are each a function (body, n) ->
+ * { content, delayMs? } or a value; `n` counts calls of that kind. Records every body it was sent.
  */
-export function scriptedInfer({ chat = "Here is a hint: what do you get if you count by sevens?", judge = { message: "ok", reply: "ok", topic: "a question", why: "fine" }, chatFails = 0 } = {}) {
-  const calls = { chat: [], judge: [] };
+export function scriptedInfer({ chat = "Here is a hint: what do you get if you count by sevens?", judge = { message: "ok", reply: "ok", topic: "a question", why: "fine" }, homeCheck = { home: "no" }, chatFails = 0 } = {}) {
+  const calls = { chat: [], judge: [], homeCheck: [] };
   const infer = async (body, { timeoutMs }) => {
-    const isJudge = /safeguard/.test(body.model);
-    const kind = isJudge ? "judge" : "chat";
+    // The safeguard model answers two things: the judge's labels, and, before a parent alert, the
+    // one question about trouble at home (lib/alert.mjs). They are scripted apart.
+    const isCheck = /safeguard/.test(body.model) && /^You check one thing/.test(body.messages?.[0]?.content ?? "");
+    const isJudge = /safeguard/.test(body.model) && !isCheck;
+    const kind = isCheck ? "homeCheck" : isJudge ? "judge" : "chat";
     calls[kind].push(body);
     const n = calls[kind].length;
-    if (!isJudge && n <= chatFails) throw Object.assign(new Error("down"), { kind: "http", status: 503 });
-    const spec = typeof (isJudge ? judge : chat) === "function" ? (isJudge ? judge : chat)(body, n) : isJudge ? judge : chat;
-    const s = typeof spec === "string" ? { content: spec } : spec && "content" in spec ? spec : { content: JSON.stringify(spec) };
+    if (kind === "chat" && n <= chatFails) throw Object.assign(new Error("down"), { kind: "http", status: 503 });
+    const script = isCheck ? homeCheck : isJudge ? judge : chat;
+    const spec = typeof script === "function" ? script(body, n) : script;
+    const s = typeof spec === "string" ? { content: spec } : spec && ("content" in spec || "throws" in spec) ? spec : { content: JSON.stringify(spec) };
     if (s.delayMs) {
       const ac = new AbortController();
       const t = setTimeout(() => ac.abort(), timeoutMs);
@@ -77,13 +82,65 @@ export function scriptedInfer({ chat = "Here is a hint: what do you get if you c
         clearTimeout(t);
       }
     }
-    if (s.throws) throw Object.assign(new Error(s.throws), { kind: s.throws });
-    return { content: s.content ?? "", usage: { prompt_tokens: 100, completion_tokens: 20 }, model: body.model, finish: s.finish ?? "stop", ms: s.delayMs ?? 5 };
+    if (s.throws) throw Object.assign(new Error(s.throws), { kind: s.throws, status: s.status ?? null });
+    return { content: s.content ?? "", toolCalls: s.toolCalls ?? [], usage: { prompt_tokens: 100, completion_tokens: 20 }, model: body.model, finish: s.finish ?? "stop", ms: s.delayMs ?? 5 };
   };
   return { infer, calls };
+}
+
+// --- web search ---------------------------------------------------------------------------------
+
+export const SEARCH_POLICY = JSON.parse(readFileSync(join(ROOT, "policy", "search-policy.json"), "utf8"));
+
+/** A model's request for one search, as the inference API returns it. */
+export const searchCall = (query, id = "call_1") => ({ id, type: "function", function: { name: "search", arguments: JSON.stringify({ query }) } });
+
+/** Three results as Tinfoil's search server returns them. Every site here is made up. */
+export const SAMPLE_RESULTS = [
+  { title: "Harbor City Otters win 4 to 2", url: "https://www.otters-hockey.example/recap/1107", content: "The Otters beat the Lakeside Herons 4 to 2 on Saturday night.", published_date: "2026-11-08T03:10:00Z" },
+  { title: "Otters schedule and results", url: "https://sports.example.org/otters/schedule", content: "Next game: Thursday at home against the Pinecrest Owls.", published_date: "2026-11-07" },
+  { title: "League standings", url: "https://league.example.net/standings", content: "The Otters are second in the division with 19 points." },
+];
+
+/**
+ * A scripted stand-in for the search service. `results` is a list or a function (query, n) -> list;
+ * `fails` makes it throw that kind. Records every query it was sent and with which limits.
+ */
+export function scriptedSearch(results = SAMPLE_RESULTS, { filter = { checked: true, masked: false }, fails = null } = {}) {
+  const queries = [];
+  const search = async (query, opts = {}) => {
+    queries.push({ query, opts });
+    if (fails) throw Object.assign(new Error(fails), { kind: fails });
+    const list = typeof results === "function" ? results(query, queries.length) : results;
+    return { results: cleanResults(list, opts), filter, ms: 7 };
+  };
+  return { search, queries };
 }
 
 /** 4:00pm on Tuesday 2026-11-03 in New York (21:00 UTC). */
 export const TUESDAY_4PM = new Date("2026-11-03T21:00:00Z");
 /** 11:00pm on Tuesday 2026-11-03 in New York. */
 export const TUESDAY_11PM = new Date("2026-11-04T04:00:00Z");
+
+// --- the parent alert ---------------------------------------------------------------------------
+
+/**
+ * A scripted stand-in for the family's account: records every alert it was sent. By default it
+ * takes the alert, as the account does. `ok: false` with a `result` refuses it; `delayMs` answers
+ * late (and is cut off at the caller's timeout, as the real sender is); `throws` makes it throw.
+ */
+export function scriptedAlert({ ok = true, result = "ok", delayMs = 0, throws = false, onSend = null } = {}) {
+  const sent = [];
+  const send = async (alert, opts = {}) => {
+    sent.push({ alert, opts });
+    onSend?.(alert);
+    if (throws) throw new Error("account unreachable");
+    if (delayMs) {
+      const waited = Math.min(delayMs, opts.timeoutMs ?? delayMs);
+      await new Promise((r) => setTimeout(r, waited));
+      if (delayMs > (opts.timeoutMs ?? Infinity)) return { ok: false, result: "timeout", ms: waited };
+    }
+    return { ok, result, ms: delayMs };
+  };
+  return { send, sent };
+}
