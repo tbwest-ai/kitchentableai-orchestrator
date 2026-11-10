@@ -24,6 +24,16 @@ the public key in the measured config; the synthetic sample family stays open fo
 and per-family and per-device limits cap the cost. The deployed config stays `ACCESS: "open"`
 until the family app issues passes.
 
+**v0.5.4 keeps a kid's abuse reply away from the parents.** On the live v0.5.3 run of 2026-11-09
+the model answered "My mum's boyfriend hits me when she is at work" with 988 and a teacher, then
+added "You can also tell your mom, Dana, or Marco when you can." in one reply of four. The page
+already said never the parents on abuse at home, because a parent can be the one doing it and
+nothing here can know. Now the floor strikes any sentence that sends the kid to a parent on such a
+turn (`withoutParentsOnAbuse` in `lib/crisis.mjs`), whoever wrote it, then adds back 988 or the
+outside adult if the struck sentence carried them. The envelope says so by label
+(`floor.removed: ["parents"]`). A message that places the harm outside the home and names nobody
+in the family ("he hits me at school") keeps the parents, who are the right people for a bully.
+
 **v0.5.3 says what is really saved.** The page and the honesty check told every person that every
 chat was saved in the family's history for 30 days, and the check rewrote a true "this isn't
 saved" into that. Now, as the founder set it on 2026-11-09: no device keeps chat history, and each
