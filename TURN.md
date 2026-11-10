@@ -1,10 +1,10 @@
-# One turn, end to end (v0.2.0; sealed notes v0.5.0; web search v0.6.0)
+# One turn, end to end (v0.2.0; sealed notes v0.5.0; web search and the parent alert v0.6.0)
 
 Phase 1's first slice: a person's message in, the reply they may see out, compiled from their
 family's real Agreement, with the deterministic floor around the model and, for a kid, an
 independent judge holding the reply. Everything here runs inside the attested container; the
-only hosts it can reach are `inference.tinfoil.sh` and, for web search since v0.6.0,
-`websearch.tinfoil.sh`.
+only hosts it can reach are `inference.tinfoil.sh` and, since v0.6.0, `websearch.tinfoil.sh` for
+web search and the family account's alert address, `www.familyaiagreement.com`.
 
 ## The request
 
@@ -80,6 +80,7 @@ payload = { "v": 1, "aud": "kitchentableai-orchestrator", "fam": "...", "dev": "
 |---|---|---|
 | 1 | The Agreement and setup are validated. Anything missing, malformed, unfinished or unknown is a **422 with `failed_closed: true`**, and no model is called. | 1 |
 | 2 | The crisis patterns read the message, before every gate. | 7 |
+| 2b | **The parent alert** (since v0.6.0, below): for a kid, on self-harm or danger by the patterns, the family's account is told before the kid is answered, hours, limits and a model outage notwithstanding. The judge's label on the message raises it too, after step 5. Never on abuse, and never when one question to the safeguard model finds the trouble is at home. The kid's reply says a parent is being told only when the account took it. | the founder, 2026-11-09 |
 | 3 | Hours, if the hours setting applies to this person, in the family's time zone. Out of hours: no model; the reply says when the hours start and to ask a parent by first name. A crisis out of hours never reaches it: the crisis check has already answered with the crisis reply, 988 included. | 2 |
 | 3b | The lock's limits (since v0.4.0): past the family's daily limit or the device's burst limit, no model; the reply says so. A crisis past a limit has already been answered with the crisis reply. | the lock |
 | 4 | The page is compiled (`lib/compile.mjs`, v2, five layers) with today's date. The homework reminder goes next to a schoolwork message. The band's model answers (`policy/model-policy.json`; GLM 5.3 at `low` for every band), with `gpt-oss-120b` as the fallback. | 3, 13, 15 |
@@ -95,6 +96,7 @@ payload = { "v": 1, "aud": "kitchentableai-orchestrator", "fam": "...", "dev": "
   "ok": true,
   "reply": "That one's for you to work out. Here's a hint: ...",
   "sources": [],
+  "alert": null,
   "held": true,
   "outcome": "cleared",
   "retry": false,
@@ -102,7 +104,7 @@ payload = { "v": 1, "aud": "kitchentableai-orchestrator", "fam": "...", "dev": "
   "receipt":  { "alg": "Ed25519", "payload": "{...}", "signature_b64": "...", "...": "" },
   "sealed": null,
   "transcript": null,
-  "timing": { "total_ms": 1830, "model_ms": 920, "search_ms": null, "judge_ms": 880 }
+  "timing": { "total_ms": 1830, "model_ms": 920, "search_ms": null, "judge_ms": 880, "alert_ms": null }
 }
 ```
 
@@ -113,8 +115,9 @@ payload = { "v": 1, "aud": "kitchentableai-orchestrator", "fam": "...", "dev": "
 and person's ids, the band, which page version and page hash, which model and whether the
 fallback answered, the outcome, the floor's findings (crisis kind and pattern label, which help
 sentences were added, whether a sentence that names a parent was removed on abuse at home (`floor.removed`), whether an earlier message in the sitting was abuse at home (`floor.abuse_earlier`), whether the homework reminder went, which honesty corrections were made,
-whether it was out of hours), the judge's labels, attempts and milliseconds, whether an alert was
-wanted, what a web search did in counts and labels (`search`, below), and token counts. No message, no reply, no page text, no names, and no hash of a message
+whether it was out of hours), the judge's labels, attempts and milliseconds, whether a parent alert
+was wanted, whether the family's account took it and what set it off (`alert`, below, never the
+reason), what a web search did in counts and labels (`search`, below), and token counts. No message, no reply, no page text, no names, and no hash of a message
 (a short message's hash can be guessed). The tests check that the envelope of a turn contains none
 of the message's or the reply's words.
 
@@ -155,8 +158,9 @@ off here):
 
 - **No tools but search.** Tell my parent, my hours and my Agreement come in Phase 3. The page
   says the AI cannot send a message to anyone, and the honesty check holds it to that.
-- **No parent alerts are delivered.** The envelope says when the family's alert setting wants one;
-  nothing sends it yet, so the page does not say a parent is alerted.
+- **No alert on abuse, and none for adults.** The parent alert (below) covers self-harm and
+  danger for kids. The email, the dashboard notice and any text or phone notification are the
+  family account's, not this service's.
 - **No attachments, no breaks, no allowances.**
 - **No control plane.** The device sends the Agreement with each turn. That means a device could
   send an Agreement of its own making; the product fetches the Agreement from the control plane by
@@ -166,6 +170,72 @@ off here):
   check it.
 - **The connectivity check** (`{ "prompt": "..." }`, a raw model call outside the floor) is off in
   the measured config since v0.3.0. Every model call goes through the Agreement.
+
+## The parent alert (v0.6.0)
+
+When a kid may be in real trouble, the parents are told, and the kid is told that they were. The
+founder's decisions of 2026-11-09; the code is `lib/alert.mjs`, and the contract with the family's
+account was agreed with the session that builds the account's half.
+
+**Who and when.** Every kid, whatever the Agreement says: it is part of the product, not a setting.
+Parents only. It is raised when the crisis patterns say **self-harm or danger**, or when the judge
+labels the kid's message as self-harm or as the kid being in danger (the patterns missed three
+indirect self-harm messages on 2026-11-09 that the judge labeled). A request for something
+dangerous, distress, and an adult's own crisis raise none.
+
+**Never on abuse.** Not when the patterns say abuse, at home or anywhere; not when the judge does;
+not for the rest of a sitting in which the patterns read abuse at home. And before any alert
+leaves, **one question goes to the safeguard model over everything the kid wrote in the sitting,
+this message included: is the trouble at home?** Someone they live with or someone in the family
+who hurts, touches, threatens or frightens them, or a kid afraid to be home. Yes means no alert,
+to the account or to the device. No answer in time means no alert either: it fails closed, because
+the kid still gets the crisis reply and 988, and an alert to the wrong parent cannot be taken
+back. Ordinary friction (grounded, a phone taken away, a strict parent) and figures of speech
+("my dad is going to kill me when he sees my report card") are not that, and the alert goes.
+Why the question exists: on the real model a kid wrote "someone at home scares me and i dont want
+to go back there" (the judge said abuse, the patterns said nothing, and this service remembers no
+label from one turn to the next), then "sometimes i wish i could just disappear", and the parents
+were alerted. This alert waits on counsel (decision 25).
+
+**What is sent, and where.** `POST <ALERT_URL>` with `{ event, sealed }`, to the family's account,
+the third host in the egress allowlist and the only thing this service ever sends to a server of
+ours:
+
+- `event` is signed like a turn's envelope, with the turn-signing key `/pubkey` publishes. Its
+  payload is `{ v: 1, kind: "alert", id, at, family, device, person_id, sealed_sha256 }`: the turn's
+  id and time, the family's and device's ids from the pass, the kid's id. **No reason and no word
+  of the chat.** `sealed_sha256` is left out when `sealed` is null.
+- `sealed` is the reason, `{ v: 1, kind: "alert", id, at, person_id, reason }` with `reason` one of
+  `self_harm` or `danger`, sealed to the family's public half so only a parent's phone can open
+  it. Null when the setup carries no `familyPublicKey`; the alert still goes.
+
+It leaves before the kid is answered, outside hours, past a limit and with the model down alike,
+and has two seconds to be taken (`policy/alert-policy.json`). Only `200 { "ok": true }` counts. No
+redirect is followed. This service keeps no record of an alert and no memory of earlier ones: the
+account applies the one-an-hour limit.
+
+**What the kid is told.** Only when the account took it, the reply ends with the founder's line:
+"I'm letting Dana and Marco know you may need them." If the model says so itself and the alert
+went, the honesty check leaves it as that line; if the alert did not go, the check replaces the
+claim with the true sentence, as before. The page says the system alerts the parents (and that it
+never does when the danger is at home, and that a record of an alert is kept 35 days) only in a
+build whose measured config sets `ALERT_URL`.
+
+**The backup.** The turn's answer carries the same `{ event, sealed }` as a top-level `alert`, for
+the device to pass on to the account; null when there is none. The sample family has no account,
+so nothing is sent for it and nothing is handed back.
+
+**The envelope's `alert`:** `{ wanted, delivered, by, result, ms }`. `by` is `pattern` or `judge`.
+`result` is a label: `ok`, `timeout`, `http_404` (or another status), `refused`, `network`,
+`no_host` (no address in this build: the device still gets the event), `no_pass` (the sample
+family), `withheld_home` (the question found trouble at home: `wanted` is false and nothing is
+sent) or `unchecked` (the question got no answer: nothing is sent). Never the reason.
+
+What this does not do: alert on abuse, alert for an adult, send email, text or phone notifications
+(the account does), or carry the judge's abuse label from one turn to the next. The strike that
+keeps parents out of a reply (step 6) still reads the sitting by the patterns only, so in a sitting
+where only the judge saw trouble at home, a later reply can still name the parents even though no
+alert goes.
 
 ## Web search (v0.6.0)
 
@@ -277,7 +347,12 @@ reached your daily limit. You can use the AI again tomorrow. If you need help be
 or Marco." (the last sentence for kids only) and "You've exceeded limits. Wait a minute, then try
 again." (`limitReply` in `lib/turn.mjs`).
 
-These sentences are ours and wait on the founder's words: the web search sentences on the page
+The kid's alert line is the founder's pick of 2026-11-09: "I'm letting Dana and Marco know you may
+need them."
+
+These sentences are ours and wait on the founder's words: the parent alert's sentences on the page
+(in the danger paragraph and under "What is saved", `lib/compile.mjs`) and the question asked
+before an alert (`HOME_CHECK_PROMPT` in `lib/alert.mjs`), the web search sentences on the page
 (`searchOnLine` and the search-off line in `lib/compile.mjs`), the search tool's description, the
 frame around the results and the two notes (`lib/search.mjs`), the pass refusals (`PASS_ERRORS` in
 `lib/access.mjs`), the crisis and distress sentences
