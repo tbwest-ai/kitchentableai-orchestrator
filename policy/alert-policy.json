@@ -1,0 +1,7 @@
+{
+  "format": "kitchentableai-alert-policy",
+  "version": 1,
+  "about": "The parent alert (lib/alert.mjs), configuration and never code. timeoutMs is how long a kid's reply waits for the family's account to take the alert before it goes on without saying a parent was told. homeCheck is the one question asked of the safeguard model before any alert leaves (is the trouble at home?): which model, how long it may take, and how much of the sitting it reads; no answer in time means no alert. Who is alerted, what sets it off and that abuse never does are code and the founder's decisions of 2026-11-09, not settings. This file is inside the image, so a change here is a release.",
+  "timeoutMs": 2000,
+  "homeCheck": { "model": "gpt-oss-safeguard-120b", "reasoningEffort": "low", "maxTokens": 600, "timeoutMs": 2500, "maxMessages": 40, "maxChars": 8000 }
+}

@@ -56,19 +56,23 @@ const sleep = (ms, signal) =>
   });
 
 /**
- * A scripted inference API. `chat` and `judge` are each a function (body, n) -> { content, delayMs? }
- * or a value; `n` counts calls of that kind. Records every body it was sent.
+ * A scripted inference API. `chat`, `judge` and `homeCheck` are each a function (body, n) ->
+ * { content, delayMs? } or a value; `n` counts calls of that kind. Records every body it was sent.
  */
-export function scriptedInfer({ chat = "Here is a hint: what do you get if you count by sevens?", judge = { message: "ok", reply: "ok", topic: "a question", why: "fine" }, chatFails = 0 } = {}) {
-  const calls = { chat: [], judge: [] };
+export function scriptedInfer({ chat = "Here is a hint: what do you get if you count by sevens?", judge = { message: "ok", reply: "ok", topic: "a question", why: "fine" }, homeCheck = { home: "no" }, chatFails = 0 } = {}) {
+  const calls = { chat: [], judge: [], homeCheck: [] };
   const infer = async (body, { timeoutMs }) => {
-    const isJudge = /safeguard/.test(body.model);
-    const kind = isJudge ? "judge" : "chat";
+    // The safeguard model answers two things: the judge's labels, and, before a parent alert, the
+    // one question about trouble at home (lib/alert.mjs). They are scripted apart.
+    const isCheck = /safeguard/.test(body.model) && /^You check one thing/.test(body.messages?.[0]?.content ?? "");
+    const isJudge = /safeguard/.test(body.model) && !isCheck;
+    const kind = isCheck ? "homeCheck" : isJudge ? "judge" : "chat";
     calls[kind].push(body);
     const n = calls[kind].length;
-    if (!isJudge && n <= chatFails) throw Object.assign(new Error("down"), { kind: "http", status: 503 });
-    const spec = typeof (isJudge ? judge : chat) === "function" ? (isJudge ? judge : chat)(body, n) : isJudge ? judge : chat;
-    const s = typeof spec === "string" ? { content: spec } : spec && "content" in spec ? spec : { content: JSON.stringify(spec) };
+    if (kind === "chat" && n <= chatFails) throw Object.assign(new Error("down"), { kind: "http", status: 503 });
+    const script = isCheck ? homeCheck : isJudge ? judge : chat;
+    const spec = typeof script === "function" ? script(body, n) : script;
+    const s = typeof spec === "string" ? { content: spec } : spec && ("content" in spec || "throws" in spec) ? spec : { content: JSON.stringify(spec) };
     if (s.delayMs) {
       const ac = new AbortController();
       const t = setTimeout(() => ac.abort(), timeoutMs);
@@ -117,3 +121,26 @@ export function scriptedSearch(results = SAMPLE_RESULTS, { filter = { checked: t
 export const TUESDAY_4PM = new Date("2026-11-03T21:00:00Z");
 /** 11:00pm on Tuesday 2026-11-03 in New York. */
 export const TUESDAY_11PM = new Date("2026-11-04T04:00:00Z");
+
+// --- the parent alert ---------------------------------------------------------------------------
+
+/**
+ * A scripted stand-in for the family's account: records every alert it was sent. By default it
+ * takes the alert, as the account does. `ok: false` with a `result` refuses it; `delayMs` answers
+ * late (and is cut off at the caller's timeout, as the real sender is); `throws` makes it throw.
+ */
+export function scriptedAlert({ ok = true, result = "ok", delayMs = 0, throws = false, onSend = null } = {}) {
+  const sent = [];
+  const send = async (alert, opts = {}) => {
+    sent.push({ alert, opts });
+    onSend?.(alert);
+    if (throws) throw new Error("account unreachable");
+    if (delayMs) {
+      const waited = Math.min(delayMs, opts.timeoutMs ?? delayMs);
+      await new Promise((r) => setTimeout(r, waited));
+      if (delayMs > (opts.timeoutMs ?? Infinity)) return { ok: false, result: "timeout", ms: waited };
+    }
+    return { ok, result, ms: delayMs };
+  };
+  return { send, sent };
+}

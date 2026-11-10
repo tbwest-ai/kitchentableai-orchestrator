@@ -36,9 +36,13 @@ const server = createServer((req, res) => {
       res.writeHead(400);
       return res.end();
     }
-    const isJudge = /safeguard/.test(body.model ?? "");
+    const isSafeguard = /safeguard/.test(body.model ?? "");
+    // The one question before a parent alert (lib/alert.mjs): the mock always answers that the
+    // trouble is not at home.
+    const isHomeCheck = isSafeguard && /^You check one thing/.test(body.messages?.[0]?.content ?? "");
+    const isJudge = isSafeguard && !isHomeCheck;
     if (isJudge) lastJudge = { authorization_present: true, body };
-    else last = { authorization_present: true, body };
+    else if (!isHomeCheck) last = { authorization_present: true, body };
     const userMessage = body.messages?.findLast((m) => m.role === "user")?.content ?? "";
     // Web search, for a local run. When the request offers the search tool and the message asks to
     // look something up, ask for one search with the message's first line as the words. When the
@@ -46,9 +50,11 @@ const server = createServer((req, res) => {
     const offersSearch = !isJudge && Array.isArray(body.tools) && body.tools.some((t) => t?.function?.name === "search") && body.tool_choice !== "none";
     const hasResults = Boolean(body.messages?.some((m) => m.role === "tool")) || /\nSEARCH RESULTS\n/.test(userMessage);
     const wantsSearch = offersSearch && !hasResults && /\b(?:look up|search|latest|today|tonight|score|weather|news)\b/i.test(userMessage);
-    const content = isJudge
-      ? JSON.stringify({ message: "ok", reply: "ok", topic: "a mock exchange", why: "mock verdict" })
-      : hasResults
+    const content = isHomeCheck
+      ? JSON.stringify({ home: "no" })
+      : isJudge
+        ? JSON.stringify({ message: "ok", reply: "ok", topic: "a mock exchange", why: "mock verdict" })
+        : hasResults
         ? "Mock answer from the search results [1]."
         : `Mock reply: I received ${userMessage.length} characters and all is well.`;
     const completion = {

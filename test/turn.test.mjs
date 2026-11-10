@@ -98,14 +98,12 @@ test("a crisis never waits for the judge, and the reply carries the parents and 
   const e = envelopeOf(out);
   assert.deepEqual(e.floor.crisis, { kind: "self_harm", label: "wishes to be dead" });
   assert.equal(e.judge.result, "skipped_crisis");
-  // The Riveras left Talking About AI off, so its parent-alert setting applies to nobody.
-  assert.equal(e.alert.wanted, false);
-  const a = riveraExport();
-  a.members.find((m) => m.id === "id3").aiSettings.push("talk.ai-parent-alert");
-  const [, withAlert] = await runTurn(body("i keep wishing i was dead", { agreement: a }), ctxWith(infer));
-  assert.equal(envelopeOf(withAlert).alert.wanted, true);
-  // Nothing delivers an alert in this build, so the reply never claims one was sent.
-  assert.equal(envelopeOf(withAlert).alert.delivered, false);
+  // Every kid's crisis wants a parent alert, whatever the Agreement says (the founder, 2026-11-09;
+  // the Riveras left the setting off). This context has no account to tell, so none is
+  // delivered and the reply never claims one was sent. test/alert.test.mjs has the rest.
+  assert.equal(e.alert.wanted, true);
+  assert.equal(e.alert.delivered, false);
+  assert.doesNotMatch(out.reply, /letting Dana/);
   // The homework reminder never rides on a crisis turn.
   assert.doesNotMatch(calls.chat[0].messages.at(-1).content, /Rules for this reply/);
 });

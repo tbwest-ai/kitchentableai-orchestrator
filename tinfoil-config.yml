@@ -15,7 +15,8 @@ cpus: 2
 memory: 8192
 
 networks:
-  # The container may reach two hosts, both Tinfoil enclaves, and nothing else.
+  # The container may reach three hosts and nothing else: two Tinfoil enclaves, and the family
+  # account's alert address.
   #
   # inference.tinfoil.sh: the inference API, for the chat model and the judge alike.
   #
@@ -25,14 +26,20 @@ networks:
   # That enclave sends the words on to Exa, a search company under a no-retention contract: this
   # is the one place a family's words leave attested hardware, and the product says so.
   #
-  # There is deliberately no entry for our own control plane: the family's device sends the
-  # Agreement with each turn, and the signed envelope goes back to the device, not to a server of
-  # ours. (The network keeps its first name; it now carries both hosts.)
+  # www.familyaiagreement.com (since v0.6.0): the family's account, for one thing only, the parent
+  # alert. When a kid may be in real trouble (self-harm or danger, never abuse) this service
+  # tells the account so a parent can be told. What goes is a signed event, with the family's,
+  # device's and kid's ids and the time, and a note sealed so only a parent's phone can open it.
+  # No word of any chat, and not the reason in the clear (lib/alert.mjs). This is the first and
+  # only thing this service sends to a server of ours: the Agreement still comes from the
+  # family's device with each turn, and the signed envelope still goes back to the device.
+  # (The network keeps its first name; it now carries all three hosts.)
   inference:
     egress: allowlist
     allow:
       - inference.tinfoil.sh
       - websearch.tinfoil.sh
+      - www.familyaiagreement.com
 
 containers:
   - name: "orchestrator"
@@ -48,6 +55,10 @@ containers:
       # policy/search-policy.json inside the image (30 searches a family a day). /health reports
       # the host.
       - SEARCH_URL: "https://websearch.tinfoil.sh/mcp"
+      # The parent alert (since v0.6.0). Naming the family account's address here is what lets an
+      # alert reach a parent, and what makes the compiled page say that one does. The www host is
+      # the one that answers; the bare domain redirects, and this service follows no redirect.
+      - ALERT_URL: "https://www.familyaiagreement.com/api/alert"
       # Which model answers each age band, and which judges a kid's turn, live in
       # policy/model-policy.json inside the image (GLM 5.3 for every band at "low", its floor;
       # gpt-oss-safeguard-120b as the judge, 3 s timeout, one retry, give up at 6 s).

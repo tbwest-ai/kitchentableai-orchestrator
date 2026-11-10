@@ -253,7 +253,14 @@ function describe(env, check, timing) {
   if (f.homework_reminder) out.push("The homework reminder went with the message.");
   if (f.honesty?.length) out.push(`The honesty check corrected: ${f.honesty.join(", ")}.`);
   out.push(describeSearch(env.search));
-  out.push(env.alert?.wanted ? "A parent alert is wanted; this build does not deliver alerts yet." : "No parent alert.");
+  const a = env.alert ?? {};
+  out.push(
+    !a.wanted
+      ? "No parent alert."
+      : a.delivered
+        ? `Parent alert sent (found by the ${a.by === "judge" ? "judge" : "crisis patterns"}) and taken by the family's account in ${a.ms} ms; the reply says so.`
+        : `Parent alert wanted (found by the ${a.by === "judge" ? "judge" : "crisis patterns"}) and not delivered (${a.result ?? "no answer"}); the reply does not say a parent was told.`,
+  );
   const u = env.usage?.chat;
   if (u) out.push(`Tokens: ${u.prompt_tokens} in${u.prompt_tokens_details?.cached_tokens ? ` (${u.prompt_tokens_details.cached_tokens} cached)` : ""}, ${u.completion_tokens} out.`);
   if (timing) out.push(`${timing.total_ms} ms inside the enclave (model ${timing.model_ms ?? "–"}, ${timing.search_ms != null ? `search ${timing.search_ms}, ` : ""}judge ${timing.judge_ms ?? "–"}).`);
