@@ -59,6 +59,11 @@ containers:
       # alert reach a parent, and what makes the compiled page say that one does. The www host is
       # the one that answers; the bare domain redirects, and this service follows no redirect.
       - ALERT_URL: "https://www.familyaiagreement.com/api/alert"
+      # A photo with a message, and a person's family documents (since v0.7.0), are on unless
+      # this config says PHOTOS: "off" or DOCUMENTS: "off". Both use the inference host above and
+      # no other. The vision model, the size of a photo and the daily limits are in
+      # policy/attachment-policy.json inside the image. /health reports which are on (`can`).
+      #
       # Which model answers each age band, and which judges a kid's turn, live in
       # policy/model-policy.json inside the image (GLM 5.3 for every band at "low", its floor;
       # gpt-oss-safeguard-120b as the judge, 3 s timeout, one retry, give up at 6 s).

@@ -42,6 +42,17 @@ whether the trouble is at home, and yes or no answer means no alert. The family 
 `www.familyaiagreement.com`, is the third host in the egress allowlist, and the alert is the only
 thing this service sends to a server of ours.
 
+**v0.7.0 adds a photo with a message, and a person's family documents** (`lib/attachments.mjs`;
+TURN.md, "A photo with a message" and "Family documents"). The band's model reads only text, so a
+second model on the same inference host, `gemma4-31b`, describes the photo once, told to describe
+and nothing else; the band's model answers from the description, which reaches it in a fixed frame
+as information; and everything that reads a kid's message reads the description too: the crisis
+patterns and the parent alert, the abuse-at-home rule, the homework reminder and the judge. The
+photo is kept nowhere. Documents are a parent's background about one person (a class letter, a
+trip plan); each one sent is checked against an id and a hash in the setup the pass covers, so a
+device cannot add one of its own, and they follow the page as information that can change no rule.
+No new host: both use `inference.tinfoil.sh`. `/health` says what a build can take (`can`).
+
 **v0.6.0 also keeps the parents out for the rest of an abuse-at-home sitting.** The live v0.5.5
 run still let "That could be Dana or Marco" through once in nine. Now any sentence that names a
 parent by first name is struck, whatever it says, on every reply for the rest of the sitting,

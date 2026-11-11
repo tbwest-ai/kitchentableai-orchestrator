@@ -10,7 +10,7 @@ import { spawn } from "node:child_process";
 import { generateKeyPairSync, verify } from "node:crypto";
 import { join } from "node:path";
 import { createServer } from "node:net";
-import { ROOT, riveraExport, riveraSetup } from "./helpers.mjs";
+import { ROOT, riveraExport, riveraSetup, samplePhoto } from "./helpers.mjs";
 
 function freePort() {
   return new Promise((resolve, reject) => {
@@ -71,10 +71,25 @@ const turn = (personId, message) => ({ agreement: riveraExport(), setup: riveraS
 
 test("/health names the search host and the family's daily limit", async () => {
   const h = await (await fetch(`http://127.0.0.1:${port}/health`)).json();
-  assert.equal(h.version, "0.6.0");
+  assert.equal(h.version, "0.7.0");
+  // What this version can take with a turn (since v0.7.0); the family app shows a feature only when this says so.
+  assert.deepEqual(h.can, { photos: true, documents: true });
+  assert.equal(h.vision_model, "gemma4-31b");
+  assert.equal(h.photos_per_family_per_day, 60);
   assert.equal(h.search_host, `127.0.0.1:${searchPort}`);
   assert.equal(h.searches_per_family_per_day, 30);
   assert.ok(!JSON.stringify(h).includes("test-key-not-real"));
+});
+
+test("a turn with a photo goes through whole: a body past 256 KB is taken, the photo is described, and one past 3 MB is refused", async () => {
+  const photo = samplePhoto(600_000);
+  const [status, out] = await post(port, "/turn", { ...turn("id4", "what is this"), photo });
+  assert.equal(status, 200);
+  assert.deepEqual(out.photo, { described: true });
+  assert.ok(out.user_content.startsWith("what is this\n\n[Photo: Mock reply: "), out.user_content);
+  assert.ok(!JSON.stringify(out).includes(photo.data_b64.slice(0, 60)));
+  const r = await fetch(`http://127.0.0.1:${port}/turn`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ ...turn("id4", "x"), photo: { type: "image/jpeg", data_b64: "A".repeat(4_300_000) } }) }).catch((err) => ({ status: err?.cause?.code ?? "closed" }));
+  assert.ok(r.status === 413 || r.status === "ECONNRESET" || r.status === "EPIPE" || r.status === "closed", String(r.status));
 });
 
 for (const [label, serverPort, mockPort] of [
