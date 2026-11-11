@@ -59,18 +59,20 @@ const sleep = (ms, signal) =>
  * A scripted inference API. `chat`, `judge` and `homeCheck` are each a function (body, n) ->
  * { content, delayMs? } or a value; `n` counts calls of that kind. Records every body it was sent.
  */
-export function scriptedInfer({ chat = "Here is a hint: what do you get if you count by sevens?", judge = { message: "ok", reply: "ok", topic: "a question", why: "fine" }, homeCheck = { home: "no" }, chatFails = 0 } = {}) {
-  const calls = { chat: [], judge: [], homeCheck: [] };
+export function scriptedInfer({ chat = "Here is a hint: what do you get if you count by sevens?", judge = { message: "ok", reply: "ok", topic: "a question", why: "fine" }, homeCheck = { home: "no" }, photo = SAMPLE_DESCRIPTION, chatFails = 0 } = {}) {
+  const calls = { chat: [], judge: [], homeCheck: [], photo: [] };
   const infer = async (body, { timeoutMs }) => {
     // The safeguard model answers two things: the judge's labels, and, before a parent alert, the
     // one question about trouble at home (lib/alert.mjs). They are scripted apart.
     const isCheck = /safeguard/.test(body.model) && /^You check one thing/.test(body.messages?.[0]?.content ?? "");
     const isJudge = /safeguard/.test(body.model) && !isCheck;
-    const kind = isCheck ? "homeCheck" : isJudge ? "judge" : "chat";
+    // The vision model describes a photo (lib/attachments.mjs); it is scripted apart too.
+    const isPhoto = body.model === ATTACHMENT_POLICY.photo.model;
+    const kind = isPhoto ? "photo" : isCheck ? "homeCheck" : isJudge ? "judge" : "chat";
     calls[kind].push(body);
     const n = calls[kind].length;
     if (kind === "chat" && n <= chatFails) throw Object.assign(new Error("down"), { kind: "http", status: 503 });
-    const script = isCheck ? homeCheck : isJudge ? judge : chat;
+    const script = isPhoto ? photo : isCheck ? homeCheck : isJudge ? judge : chat;
     const spec = typeof script === "function" ? script(body, n) : script;
     const s = typeof spec === "string" ? { content: spec } : spec && ("content" in spec || "throws" in spec) ? spec : { content: JSON.stringify(spec) };
     if (s.delayMs) {
@@ -87,6 +89,17 @@ export function scriptedInfer({ chat = "Here is a hint: what do you get if you c
   };
   return { infer, calls };
 }
+
+// --- a photo and the family's documents -----------------------------------------------------------
+
+export const ATTACHMENT_POLICY = JSON.parse(readFileSync(join(ROOT, "policy", "attachment-policy.json"), "utf8"));
+export const SAMPLE_DESCRIPTION = "A math worksheet titled Fractions Practice. Question 3 reads: Which is larger, 3/4 or 5/8? Show how you know. Below it is a drawing of two pizzas cut into slices.";
+
+/** A small JPEG's worth of bytes: the three bytes every JPEG starts with, then filler. Nothing opens it in a test. */
+export const samplePhoto = (bytes = 3000, type = "image/jpeg") => {
+  const head = type === "image/png" ? [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a] : type === "image/webp" ? [...Buffer.from("RIFF0000WEBP", "latin1")] : [0xff, 0xd8, 0xff, 0xe0];
+  return { type, data_b64: Buffer.concat([Buffer.from(head), Buffer.alloc(Math.max(0, bytes - head.length), 7)]).toString("base64") };
+};
 
 // --- web search ---------------------------------------------------------------------------------
 

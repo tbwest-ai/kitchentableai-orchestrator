@@ -72,7 +72,7 @@ test("no tool, search, upload or alert is promised that this build cannot delive
   assert.doesNotMatch(t, /"my hours"/);
   assert.doesNotMatch(t, /a parent is alerted/i);
   assert.doesNotMatch(t, /Web search is on/);
-  assert.doesNotMatch(t, /Attaching a photo or file is on/);
+  assert.doesNotMatch(t, /Photos are on/);
   assert.match(t, /You cannot send a message to Dana or Marco or to anyone else\./);
   assert.match(t, /You cannot search the web in this version/);
   // With the tools on, the same page says what they do.
@@ -80,6 +80,8 @@ test("no tool, search, upload or alert is promised that this build cannot delive
   const withTools = page("id4", { capabilities: all });
   assert.match(withTools, /tell-my-parent tool/);
   assert.match(withTools, /Web search is on for Theo/);
+  assert.match(withTools, /Photos are on for Theo: when he attaches a photo, the system describes it to you next to his message, because you cannot see it yourself\./);
+  assert.match(page("id4", { capabilities: all }, riveraSetup({ people: { ...riveraSetup().people, id4: { pronouns: "he", age: 13, uploads: false } } })), /Photos are off for Theo: if he mentions a photo or a file, say that photos are off for him/);
 });
 
 test("hours are stated only for a person the hours setting applies to", () => {

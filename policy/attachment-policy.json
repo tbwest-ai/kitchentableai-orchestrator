@@ -1,0 +1,19 @@
+{
+  "format": "kitchentableai-attachment-policy",
+  "version": 1,
+  "about": "A photo with a message, and a person's family documents (lib/attachments.mjs), configuration and never code. photo.model is the vision model that describes a photo; the band's model answers from the description. One photo a turn. maxBytes is the photo once decoded. The daily limit counts photos sent to the vision model, per family, by the family's own date; the synthetic sample family shares one small limit. These are cost guards for the founding test, set by hand before the cost of a photo was known. documents: how many a person may have and how much text in all; they are sent with every turn, so the limit is also a cost guard. This file is inside the image, so a change here is a release.",
+  "photo": {
+    "model": "gemma4-31b",
+    "maxTokens": 1200,
+    "timeoutMs": 25000,
+    "maxBytes": 1572864,
+    "maxDescriptionChars": 1500,
+    "familyPhotosPerDay": 60,
+    "samplePhotosPerDay": 10
+  },
+  "documents": {
+    "maxCount": 8,
+    "maxChars": 40000,
+    "maxNameChars": 120
+  }
+}

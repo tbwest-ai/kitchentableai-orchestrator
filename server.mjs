@@ -7,7 +7,7 @@
 // has read it, and returns the reply with a signed envelope of labels (never words).
 //
 //   GET  /health   liveness: version, key source, models, inference host, search host, alert host. No secrets.
-//   POST /turn     one turn (lib/turn.mjs): { agreement, setup, personId, pass, history?, message }.
+//   POST /turn     one turn (lib/turn.mjs): { agreement, setup, personId, pass, history?, message, photo?, documents? }.
 //                  `pass` is the family's signed pass (lib/access.mjs); the synthetic sample
 //                  family needs none. /page takes the same pass.
 //                  The spike's connectivity check ({ "prompt": "..." }) still answers when the
@@ -38,8 +38,9 @@ import { CONTENT_MODEL } from "./lib/agreement.mjs";
 import { PASS_ERRORS, checkPass, isSampleAgreement, makeLimits, parseAccessKeys } from "./lib/access.mjs";
 import { makeSearch, makeSearchLimits } from "./lib/search.mjs";
 import { makeAlertSender } from "./lib/alert.mjs";
+import { makePhotoLimits } from "./lib/attachments.mjs";
 
-export const VERSION = "0.6.0";
+export const VERSION = "0.7.0";
 const HERE = dirname(fileURLToPath(import.meta.url));
 
 const PORT = Number(process.env.PORT ?? 8080);
@@ -47,7 +48,8 @@ const HOST = process.env.HOST ?? "0.0.0.0";
 const INFERENCE_URL = process.env.INFERENCE_URL ?? "https://inference.tinfoil.sh/v1/chat/completions";
 const POLICY = JSON.parse(readFileSync(process.env.MODEL_POLICY_PATH ?? join(HERE, "policy", "model-policy.json"), "utf8"));
 const CONNECTIVITY_TURN = process.env.CONNECTIVITY_TURN === "on";
-const MAX_BODY_BYTES = 256 * 1024;
+// A turn may carry one photo (at most 1.5 MB, about 2 MB as base64) and a person's documents.
+const MAX_BODY_BYTES = 3 * 1024 * 1024;
 const startedAt = Date.now();
 
 const signer = loadSigningKey();
@@ -91,7 +93,13 @@ const search = SEARCH_URL ? makeSearch({ url: SEARCH_URL, apiKey: process.env.TI
 const ALERT_URL = (process.env.ALERT_URL ?? "").trim();
 const ALERT_POLICY = JSON.parse(readFileSync(process.env.ALERT_POLICY_PATH ?? join(HERE, "policy", "alert-policy.json"), "utf8"));
 const alert = ALERT_URL ? makeAlertSender({ url: ALERT_URL }) : null;
-const capabilities = Object.freeze({ ...NO_CAPABILITIES, search: Boolean(search), alerts: Boolean(alert) });
+// A photo with a message, and a person's family documents (lib/attachments.mjs, since v0.7.0).
+// Both use only the inference host, so neither needs a new address in the egress allowlist. Each
+// is on unless the measured config turns it off (PHOTOS=off, DOCUMENTS=off); /health says which.
+const ATTACHMENT_POLICY = JSON.parse(readFileSync(process.env.ATTACHMENT_POLICY_PATH ?? join(HERE, "policy", "attachment-policy.json"), "utf8"));
+const PHOTOS = process.env.PHOTOS !== "off";
+const DOCUMENTS = process.env.DOCUMENTS !== "off";
+const capabilities = Object.freeze({ ...NO_CAPABILITIES, search: Boolean(search), alerts: Boolean(alert), attachments: PHOTOS, documents: DOCUMENTS });
 const ctx = {
   infer,
   signer,
@@ -105,6 +113,8 @@ const ctx = {
   searchLimits: makeSearchLimits(SEARCH_POLICY),
   alert,
   alertPolicy: ALERT_POLICY,
+  attachmentPolicy: ATTACHMENT_POLICY,
+  photoLimits: makePhotoLimits(ATTACHMENT_POLICY.photo),
 };
 
 /** Who may run this request: { who } to go ahead, or [status, body] to refuse. */
@@ -189,6 +199,12 @@ function health() {
       searches_per_family_per_day: SEARCH_URL ? SEARCH_POLICY.familySearchesPerDay : null,
       // The parent alert: the family account's host it goes to, or null when this build cannot send one.
       alert_host: ALERT_URL ? new URL(ALERT_URL).host : null,
+      // What this version can take with a turn. The family app shows the + for a photo and the
+      // documents screen only when this says so.
+      can: { photos: PHOTOS, documents: DOCUMENTS },
+      vision_model: PHOTOS ? ATTACHMENT_POLICY.photo.model : null,
+      photos_per_family_per_day: PHOTOS ? ATTACHMENT_POLICY.photo.familyPhotosPerDay : null,
+      documents_max_chars: DOCUMENTS ? ATTACHMENT_POLICY.documents.maxChars : null,
       api_key_present: Boolean(process.env.TINFOIL_API_KEY),
       connectivity_turn: CONNECTIVITY_TURN,
       access: ACCESS_MODE,
@@ -277,7 +293,7 @@ const server = createServer(async (req, res) => {
 server.listen(PORT, HOST, () => {
   console.log(
     `kitchentableai-orchestrator ${VERSION} listening on ${HOST}:${PORT} page=${PAGE_VERSION} ` +
-      `judge=${POLICY.judge.model} inference=${new URL(INFERENCE_URL).host} search=${SEARCH_URL ? new URL(SEARCH_URL).host : "off"} alert=${ALERT_URL ? new URL(ALERT_URL).host : "off"} key_source=${signer.source} ` +
+      `judge=${POLICY.judge.model} inference=${new URL(INFERENCE_URL).host} search=${SEARCH_URL ? new URL(SEARCH_URL).host : "off"} photos=${PHOTOS ? ATTACHMENT_POLICY.photo.model : "off"} documents=${DOCUMENTS ? "on" : "off"} alert=${ALERT_URL ? new URL(ALERT_URL).host : "off"} key_source=${signer.source} ` +
       `api_key=${process.env.TINFOIL_API_KEY ? "present" : "absent"} connectivity_turn=${CONNECTIVITY_TURN ? "on" : "off"} ` +
       `access=${ACCESS_MODE}${ACCESS_MODE === "passes" ? `(${ACCESS_KEYS.length} key${ACCESS_KEYS.length === 1 ? "" : "s"})` : ""}`,
   );
