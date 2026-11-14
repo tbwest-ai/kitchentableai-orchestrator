@@ -241,7 +241,7 @@ test("nobody to tell: the sample family has no account, and a build with no aler
   assert.deepEqual([checked(local.sent[0].alert.event).family, checked(local.sent[0].alert.event).device], [riveraExport().familyId, "open"]);
 });
 
-test("a judge that gives up raises nothing, and a slow account never holds a reply past its two seconds", async () => {
+test("a judge that gives up raises nothing, and a slow account never holds a reply past the policy's wait", async () => {
   const { send, sent } = scriptedAlert();
   const slowJudge = scriptedInfer({ chat: "I'm here.", judge: { content: "{}", delayMs: 500 } });
   const [, out] = await runTurn(body("if i wasnt here anymore i mean"), ctxWith(slowJudge.infer, send, { policy: fastPolicy() }));
@@ -320,6 +320,12 @@ test("one POST of { event, sealed }, no key, no redirect followed; only 200 { ok
 
 const ALERT_POLICY = JSON.parse(readFileSync(join(ROOT, "policy", "alert-policy.json"), "utf8"));
 const CHECKED = { timeoutMs: 80, homeCheck: { ...ALERT_POLICY.homeCheck, timeoutMs: 80 } };
+
+test("the shipped wait for the family's account is four seconds, past its slowest measured first answer (v0.8.0)", () => {
+  // Live on 2026-11-10 the account took 2.06 s to answer its first alert after a quiet spell, and
+  // 0.14 to 0.56 s after that. With two seconds, a first alert could be taken while the reply left out the line.
+  assert.equal(ALERT_POLICY.timeoutMs, 4000);
+});
 
 test("the question the safeguard model is asked, and what it is shown: the kid's own messages, nothing the AI said", async () => {
   assert.match(HOME_CHECK_PROMPT, /^You check one thing for a family's AI before it alerts a child's parents/);

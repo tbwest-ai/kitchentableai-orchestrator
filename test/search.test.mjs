@@ -237,14 +237,22 @@ test("a citation or a link the model made up never reaches the person", () => {
   assert.equal(withSources("Schedule: https://sports.example.org/otters/schedule.", RESULTS).text, "Schedule: [1].");
 });
 
-test("the model's own source list is replaced by the real one, and an uncited answer still shows where it came from", () => {
+test("the model's own source list is replaced by the real one, and a reply that cites nothing lists nothing", () => {
   const own = withSources("The Otters won 4 to 2 [1].\n\nSources:\n[1] Some title - https://elsewhere.example\n[2] Another", RESULTS);
   assert.equal(own.text, "The Otters won 4 to 2 [1].");
   assert.equal(own.sources.length, 1);
+  // v0.8.0: the first three results are no longer listed under a reply that cites none of them.
+  // Live on 2026-11-10 the scrub took a kid's own name out of "what the name Theo means", the
+  // results were about something else, the model said so, and those results still went under it.
   const uncited = withSources("The Otters won 4 to 2 on Saturday.", RESULTS);
-  assert.equal(uncited.cited, 0);
-  assert.equal(uncited.sources.length, 3);
-  assert.match(uncited.block, /^\n\nSources:\n1\. Harbor City Otters win 4 to 2 \(otters-hockey\.example\)/);
+  assert.deepEqual(uncited, { text: "The Otters won 4 to 2 on Saturday.", sources: [], block: "", cited: 0 });
+  // A list of the model's own still goes when it cites nothing.
+  const ownOnly = withSources("The results were not about that, but the Otters play Saturday.\n\nSources:\n- https://elsewhere.example", RESULTS);
+  assert.deepEqual(ownOnly, { text: "The results were not about that, but the Otters play Saturday.", sources: [], block: "", cited: 0 });
+  // A number that names no result is not a citation, so it earns no list either.
+  const madeUp = withSources("The Otters won on Saturday [7].", RESULTS);
+  assert.deepEqual([madeUp.sources, madeUp.block, madeUp.cited], [[], "", 0]);
+  assert.doesNotMatch(madeUp.text, /\[7\]/);
   // No results: no list, and a link the model wrote is still removed.
   assert.deepEqual(withSources("I could not look that up. Try https://made-up.example.", []), { text: "I could not look that up. Try.", sources: [], block: "", cited: 0 });
 });
