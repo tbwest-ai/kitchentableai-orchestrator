@@ -71,7 +71,7 @@ const turn = (personId, message) => ({ agreement: riveraExport(), setup: riveraS
 
 test("/health names the search host and the family's daily limit", async () => {
   const h = await (await fetch(`http://127.0.0.1:${port}/health`)).json();
-  assert.equal(h.version, "0.7.0");
+  assert.equal(h.version, "0.8.0");
   // What this version can take with a turn (since v0.7.0); the family app shows a feature only when this says so.
   assert.deepEqual(h.can, { photos: true, documents: true });
   assert.equal(h.vision_model, "gemma4-31b");

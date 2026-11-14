@@ -84,6 +84,21 @@ test("a 13-year-old asks something current: the model asks, this service searche
   assert.equal(typeof out.timing.search_ms, "number");
 });
 
+test("a search whose results the reply does not cite puts no list of sources under it (v0.8.0)", async () => {
+  // Live on 2026-11-10: "look up what the name Theo means" lost Theo's own name to the scrub, the
+  // results were about the word "name", and the model said so and answered from what it knew.
+  const UNCITED = "Those results were about something else, so I can't say for sure. Theo is usually short for Theodore, which means gift of God.";
+  const { infer, calls } = asksThenAnswers("what the name means", UNCITED);
+  const { search } = scriptedSearch();
+  const [, out] = await runTurn(body("look up what the name Theo means"), ctxWith(infer, search));
+  assert.equal(out.outcome, "cleared");
+  assert.equal(out.reply, UNCITED);
+  assert.deepEqual(out.sources, []);
+  assert.ok(calls.judge[0].messages[1].content.endsWith(UNCITED), "the judge read the reply as Theo sees it, with no list");
+  const e = envelopeOf(out);
+  assert.deepEqual([e.search.ran, e.search.results, e.search.cited, e.search.outcome], [1, 3, 0, "ok"]);
+});
+
 test("an adult gets the same answer with sources, and is not judged", async () => {
   const { infer, calls } = asksThenAnswers("Harbor City Otters score", ANSWER);
   const { search } = scriptedSearch();

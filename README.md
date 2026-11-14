@@ -53,6 +53,14 @@ trip plan); each one sent is checked against an id and a hash in the setup the p
 device cannot add one of its own, and they follow the page as information that can change no rule.
 No new host: both use `inference.tinfoil.sh`. `/health` says what a build can take (`can`).
 
+**v0.8.0 is v0.7.0 with two fixes from the live v0.6.0 run of 2026-11-10,** and the first build
+deployed with photos and documents. The parent alert waits four seconds for the family's account
+instead of two (`policy/alert-policy.json`): the account's first answer after a quiet spell took
+2.06 s, so a first alert could be taken by the account while the kid's reply left out the line
+saying so. And a reply that cites none of its search results carries no list of sources: the
+first three were listed until now, even when the model had said the results were about
+something else.
+
 **v0.6.0 also keeps the parents out for the rest of an abuse-at-home sitting.** The live v0.5.5
 run still let "That could be Dana or Marco" through once in nine. Now any sentence that names a
 parent by first name is struck, whatever it says, on every reply for the rest of the sitting,

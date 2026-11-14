@@ -1,4 +1,4 @@
-# One turn, end to end (v0.2.0; sealed notes v0.5.0; web search and the parent alert v0.6.0; photos and family documents v0.7.0)
+# One turn, end to end (v0.2.0; sealed notes v0.5.0; web search and the parent alert v0.6.0; photos and family documents v0.7.0; v0.8.0)
 
 Phase 1's first slice: a person's message in, the reply they may see out, compiled from their
 family's real Agreement, with the deterministic floor around the model and, for a kid, an
@@ -220,7 +220,8 @@ ours:
   it. Null when the setup carries no `familyPublicKey`; the alert still goes.
 
 It leaves before the kid is answered, outside hours, past a limit and with the model down alike,
-and has two seconds to be taken (`policy/alert-policy.json`). Only `200 { "ok": true }` counts. No
+and has four seconds to be taken (`policy/alert-policy.json`; two until v0.8.0, when the account's
+first answer after a quiet spell took 2.06 s). Only `200 { "ok": true }` counts. No
 redirect is followed. This service keeps no record of an alert and no memory of earlier ones: the
 account applies the one-an-hour limit.
 
@@ -367,7 +368,11 @@ What happens on a turn for a person who has it:
 5. **This service writes the sources** (`withSources`). The model cites by number; a number that
    names no result is removed; a link the model wrote is replaced by its citation when it is one of
    the results and removed when it is not; a "Sources" list the model wrote is replaced by the real
-   one. When the model answered from results and cited none, the first three are listed. A source
+   one. Only a result the reply cites is listed, so **a reply that cites none carries no list**
+   (since v0.8.0; until then the first three results were listed: on the live run of 2026-11-10
+   "look up what the name Theo means" lost the kid's own name to the scrub, the results were about
+   the word "name", the model said so and answered from what it knew, and those three results still
+   went under the reply as its sources; `search.cited` in the envelope is 0 then). A source
    on the search company's own site (`noLinkSites` in the policy: `exa.ai`) is listed by title with
    no link and a null `url`: on 2026-11-09 one of two such links was a 404 for a visitor, and this
    service cannot check a link. **A reply written with no search this turn carries no list**: on
