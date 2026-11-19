@@ -44,7 +44,7 @@ networks:
 containers:
   - name: "orchestrator"
     # Replace the all-zero digest with the real one. A tag alone is rejected.
-    image: "ghcr.io/tbwest-ai/kitchentableai-orchestrator@sha256:f7df176c86fceced16cb00335c7ca9fab2c9e004c79fee94ae41739b5ab439cb"
+    image: "ghcr.io/tbwest-ai/kitchentableai-orchestrator@sha256:c96a91b542d023a642609e38e361e3624711e6d8fdc5e544eee595e906c3b4ac"
     networks: [inference]
     env:
       - PORT: "8080"
