@@ -243,7 +243,7 @@ function describe(env, check, timing) {
   out.push(`Model ${env.model ?? "none"}${env.fallback_used ? " (the fallback: the main model did not answer)" : ""}; page ${env.page?.version ?? "–"} ${short(env.page?.sha256)}.`);
   const j = env.judge;
   if (!j) out.push(env.model ? "No judge: an adult's reply is not held." : "No model answered, so there was nothing for the judge to read.");
-  else if (j.result === "skipped_crisis") out.push("Judge skipped: a crisis never waits for the judge.");
+  else if (j.result === "skipped_crisis") out.push("Judge skipped: a crisis never waited for the judge before v0.9.0.");
   else if (j.result === "gave_up") out.push(`Judge gave up after ${j.attempts} tries (${(j.failures ?? []).join(", ")}); nothing was shown.`);
   else out.push(`Judge ${j.result}: message "${j.message}", reply "${j.reply}", ${j.attempts} ${j.attempts === 1 ? "try" : "tries"}, ${j.ms} ms.`);
   const f = env.floor ?? {};

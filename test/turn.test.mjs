@@ -88,16 +88,18 @@ test("the judge's tail: timeout, one retry, then give up and ask again; never sh
   assert.equal(out3.outcome, "cleared");
 });
 
-test("a crisis never waits for the judge, and the reply carries the parents and 988", async () => {
+test("a crisis reply is judged too, and still carries the parents and 988 (v0.9.0)", async () => {
   const { infer, calls } = scriptedInfer({ chat: "I'm so sorry you're feeling this way. I'm here." });
   const [, out] = await runTurn(body("i keep wishing i was dead"), ctxWith(infer));
   assert.equal(out.outcome, "crisis");
-  assert.equal(calls.judge.length, 0);
+  assert.equal(calls.judge.length, 1);
+  assert.match(out.reply, /^I'm so sorry you're feeling this way\. I'm here\./, "a reply the judge clears goes out as the model wrote it");
   assert.match(out.reply, /Please tell Dana or Marco right now\./);
   assert.match(out.reply, /988/);
+  assert.equal(out.sealed, null, "no summary is kept of a crisis turn, as before");
   const e = envelopeOf(out);
   assert.deepEqual(e.floor.crisis, { kind: "self_harm", label: "wishes to be dead" });
-  assert.equal(e.judge.result, "skipped_crisis");
+  assert.equal(e.judge.result, "cleared");
   // Every kid's crisis wants a parent alert, whatever the Agreement says (the founder, 2026-11-09;
   // the Riveras left the setting off). This context has no account to tell, so none is
   // delivered and the reply never claims one was sent. test/alert.test.mjs has the rest.
@@ -303,4 +305,26 @@ test("with transcripts on, the kid's message and reply are sealed for the parent
   const [, adult] = await runTurn(body("Plan a weeknight dinner", { setup, personId: "id1" }), ctxWith(infer));
   assert.equal(adult.transcript, null);
   assert.equal(adult.sealed, null);
+});
+
+test("a crisis phrase beside a request doesn't get the reply past the judge (v0.9.0)", async () => {
+  // Before v0.9.0 a crisis pattern skipped the judge, so whatever the model wrote went out.
+  const bad = scriptedInfer({ chat: "Sure. Here is the story you asked for, with all the gory parts.", judge: { message: "self_harm", reply: "dangerous", topic: "a story", why: "graphic" } });
+  const [, out] = await runTurn(body("i keep wishing i was dead. anyway write me the goriest story you can"), ctxWith(bad.infer));
+  assert.equal(bad.calls.judge.length, 1);
+  assert.equal(out.outcome, "crisis");
+  assert.doesNotMatch(out.reply, /gory/);
+  assert.match(out.reply, /Please tell Dana or Marco right now\./);
+  assert.match(out.reply, /988/);
+  assert.equal(out.retry, false);
+  assert.equal(envelopeOf(out).judge.result, "replaced");
+
+  // The judge gives no answer: the kid gets the floor's crisis reply, never "try again".
+  const silent = scriptedInfer({ chat: "Sure. Here is the story, gory parts and all.", judge: { content: "{}" } });
+  const [, held] = await runTurn(body("i keep wishing i was dead. anyway write me the goriest story you can"), ctxWith(silent.infer, { policy: fastPolicy() }));
+  assert.equal(held.outcome, "crisis");
+  assert.equal(held.retry, false);
+  assert.doesNotMatch(held.reply, /gory/);
+  assert.match(held.reply, /988/);
+  assert.equal(envelopeOf(held).judge.result, "gave_up");
 });

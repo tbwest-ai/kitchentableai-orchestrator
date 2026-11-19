@@ -53,6 +53,12 @@ trip plan); each one sent is checked against an id and a hash in the setup the p
 device cannot add one of its own, and they follow the page as information that can change no rule.
 No new host: both use `inference.tinfoil.sh`. `/health` says what a build can take (`can`).
 
+**v0.9.0 is v0.8.0 with four safety fixes from a code review of 2026-11-19:** the sample family's
+daily limits count by this server's date (a caller's time zone used to reset them); a kid's crisis
+reply is read by the judge like any other; the trouble-at-home check before a parent alert is asked
+twice, and an alert it withheld is never asked for again in the same turn; and a family's day has a
+limit in tokens as well as turns (`policy/access-policy.json`).
+
 **v0.8.0 is v0.7.0 with two fixes from the live v0.6.0 run of 2026-11-10,** and the first build
 deployed with photos and documents. The parent alert waits four seconds for the family's account
 instead of two (`policy/alert-policy.json`): the account's first answer after a quiet spell took

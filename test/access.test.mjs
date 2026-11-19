@@ -131,3 +131,43 @@ test("the burst limit's reply is the founder's, and a parent's daily one has no 
   const [, parent] = await runTurn({ agreement: a(), setup: s(), personId: "id1", message: "hi" }, ctxWith(infer, { limits: day, who: { family: "f", device: "d" } }));
   assert.equal(parent.reply, "You've reached your daily limit. You can use the AI again tomorrow.");
 });
+
+// --- v0.9.0: the sample's day, and a day's limit in tokens ----------------------------------------
+
+test("the sample family counts by the server's date: a caller's time zone can't start a new day (v0.9.0)", async () => {
+  const limits = makeLimits({ familyTurnsPerDay: 5, deviceTurnsPerMinute: 50, sampleTurnsPerDay: 2 });
+  const { infer } = scriptedInfer();
+  const run = async (timeZone) => (await runTurn({ agreement: a(), setup: { ...s(), timeZone }, personId: "id3", message: "What is 7 times 8?" }, ctxWith(infer, { limits, who: { sample: true } })))[1].outcome;
+  // Kiritimati and Pago Pago are never on the same calendar date; before v0.9.0 each switch reset the count.
+  const outcomes = [];
+  for (const zone of ["Pacific/Kiritimati", "Pacific/Pago_Pago", "Pacific/Kiritimati", "Pacific/Pago_Pago"]) outcomes.push(await run(zone));
+  assert.deepEqual(outcomes, ["cleared", "cleared", "daily_limit", "daily_limit"]);
+});
+
+test("a family's day has a limit in tokens too, counted from what its turns' model calls used (v0.9.0)", async () => {
+  // A kid's turn here is two calls, the chat and the judge, 120 tokens each.
+  const limits = makeLimits({ familyTurnsPerDay: 50, deviceTurnsPerMinute: 50, sampleTurnsPerDay: 50, familyTokensPerDay: 400 });
+  const { infer } = scriptedInfer();
+  const run = async (family) => (await runTurn({ agreement: a(), setup: s(), personId: "id3", message: "What is 7 times 8?" }, ctxWith(infer, { limits, who: { family, device: "d" } })))[1].outcome;
+  assert.deepEqual([await run("f"), await run("f"), await run("f")], ["cleared", "cleared", "daily_limit"]);
+  assert.equal(await run("g"), "cleared", "another family's tokens are its own");
+  // A crisis past the tokens still gets its help.
+  const [, crisis] = await runTurn({ agreement: a(), setup: s(), personId: "id3", message: "I want to die" }, ctxWith(infer, { limits, who: { family: "f", device: "d" } }));
+  assert.equal(crisis.outcome, "crisis_limited");
+  assert.match(crisis.reply, /988/);
+
+  const l = makeLimits({ familyTurnsPerDay: 50, deviceTurnsPerMinute: 50, sampleTurnsPerDay: 50, familyTokensPerDay: 1000, sampleTokensPerDay: 100 });
+  l.spend({ family: "f", device: "d" }, "Thu", 999);
+  assert.equal(l.admit({ family: "f", device: "d" }, "Thu"), null);
+  l.spend({ family: "f", device: "d" }, "Thu", 1);
+  assert.equal(l.admit({ family: "f", device: "d" }, "Thu"), "day");
+  assert.equal(l.admit({ family: "f", device: "d" }, "Fri"), null, "the next day starts fresh");
+  l.spend({ sample: true }, "2026-11-19", 100);
+  assert.equal(l.admit({ sample: true }, "2026-11-19"), "day");
+  l.spend({ open: true }, "Thu", 1e9);
+  assert.equal(l.admit({ open: true }, "Thu"), null, "an open local run has no limit");
+  // With no token numbers in the policy there is no token limit, as before v0.9.0.
+  const old = makeLimits({ familyTurnsPerDay: 50, deviceTurnsPerMinute: 50, sampleTurnsPerDay: 50 });
+  old.spend({ family: "f", device: "d" }, "Thu", 1e12);
+  assert.equal(old.admit({ family: "f", device: "d" }, "Thu"), null);
+});

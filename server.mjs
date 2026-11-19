@@ -40,7 +40,7 @@ import { makeSearch, makeSearchLimits } from "./lib/search.mjs";
 import { makeAlertSender } from "./lib/alert.mjs";
 import { makePhotoLimits } from "./lib/attachments.mjs";
 
-export const VERSION = "0.8.0";
+export const VERSION = "0.9.0";
 const HERE = dirname(fileURLToPath(import.meta.url));
 
 const PORT = Number(process.env.PORT ?? 8080);
