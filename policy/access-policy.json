@@ -1,7 +1,9 @@
 {
-  "about": "The lock (lib/access.mjs). A pass lives at most passMaxLifetimeSeconds. The daily limit counts turns that reach a model, per family, by the family's own date; the burst limit counts per device per minute. The synthetic sample family needs no pass and shares one small daily limit. A crisis past any limit still gets the crisis reply. These are cost guards for the founding test, set by hand; a month of real use sets the real numbers (plan section 5, Phase 6).",
+  "about": "The lock (lib/access.mjs). A pass lives at most passMaxLifetimeSeconds. The daily limit counts turns that reach a model, per family, by the family's own date; the burst limit counts per device per minute. Since v0.9.0 a family's day also has a limit in tokens (what its turns' model calls used, in and out), because one turn can cost thirty times another. The synthetic sample family needs no pass, shares one small daily limit of each kind, and counts by this server's date. A crisis past any limit still gets the crisis reply. These are cost guards for the founding test, set by hand; a month of real use sets the real numbers (plan section 5, Phase 6).",
   "passMaxLifetimeSeconds": 43200,
   "familyTurnsPerDay": 400,
   "deviceTurnsPerMinute": 20,
-  "sampleTurnsPerDay": 100
+  "sampleTurnsPerDay": 100,
+  "familyTokensPerDay": 3000000,
+  "sampleTokensPerDay": 500000
 }

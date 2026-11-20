@@ -420,3 +420,29 @@ test("no check is asked when no alert is wanted, and none in a sitting the patte
   await runTurn(body("I've been thinking about killing myself", { personId: "id1" }), ctxWith(adult.infer, scriptedAlert().send, { alertPolicy: CHECKED }));
   assert.equal(m.calls.homeCheck.length + a.calls.homeCheck.length + adult.calls.homeCheck.length, 0);
 });
+
+// --- v0.9.0: the check is asked twice, and a withheld alert stays withheld ------------------------
+
+test("the check gives no answer the first time: it is asked again, and its answer stands (v0.9.0)", async () => {
+  assert.equal(ALERT_POLICY.homeCheck.attempts, 2);
+  const a = scriptedAlert();
+  const m = scriptedInfer({ chat: "I'm here with you.", homeCheck: (_b, n) => (n === 1 ? { throws: "timeout" } : { home: "no" }) });
+  const [, out] = await runTurn(body(SELF_HARM), ctxWith(m.infer, a.send, { alertPolicy: CHECKED }));
+  assert.equal(m.calls.homeCheck.length, 2);
+  assert.equal(a.sent.length, 1);
+  assert.deepEqual([envelopeOf(out).alert.delivered, envelopeOf(out).alert.result], [true, "ok"]);
+  // "Yes" on the second try withholds, as a first "yes" does.
+  const b = scriptedAlert();
+  const y = scriptedInfer({ chat: "I'm here with you.", homeCheck: (_b, n) => (n === 1 ? { content: "" } : { home: "yes" }) });
+  const [, held] = await runTurn(body(SELF_HARM), ctxWith(y.infer, b.send, { alertPolicy: CHECKED }));
+  assert.equal(b.sent.length, 0);
+  assert.equal(envelopeOf(held).alert.result, "withheld_home");
+  // One try when the policy names none, and never more than three.
+  let asked = 0;
+  const silent = async () => (asked++, { content: "" });
+  assert.equal(await troubleAtHome(silent, { ...ALERT_POLICY.homeCheck, attempts: undefined }, ["x"]), "unknown");
+  assert.equal(asked, 1);
+  asked = 0;
+  assert.equal(await troubleAtHome(silent, { ...ALERT_POLICY.homeCheck, attempts: 9 }, ["x"]), "unknown");
+  assert.equal(asked, 3);
+});

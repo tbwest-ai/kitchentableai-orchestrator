@@ -180,7 +180,7 @@ test("a photo of a note that reads as a crisis gets the crisis reply and the par
   assert.equal(sent.length, 1);
   const env = envelopeOf(out);
   assert.deepEqual([env.floor.crisis.kind, env.floor.crisis_source, env.alert.wanted, env.alert.delivered, env.alert.by], ["self_harm", "photo", true, true, "pattern"]);
-  assert.equal(calls.judge.length, 0, "a crisis does not wait for the judge");
+  assert.equal(calls.judge.length, 1, "a crisis reply is judged too, since v0.9.0");
 
   // Abuse at home in a photo: the abuse help, no parent named, no alert.
   const home = scriptedAlert();
@@ -309,4 +309,19 @@ test("hours hold whatever a document says: out of hours, no model sees it", asyn
   const [, out] = await runTurn(body("can we chat", { agreement: riveraWithHours(), setup, documents: [claims] }), ctxWith(infer, { clock: () => TUESDAY_11PM }));
   assert.equal(out.outcome, "out_of_hours");
   assert.equal(calls.chat.length, 0);
+});
+
+test("an alert the check withheld is not asked for again when the photo is read (v0.9.0)", async () => {
+  // A self-harm message with a photo. The check says the trouble is at home, so no alert. Before
+  // v0.9.0 the photo step asked again, and a second answer of "no" sent the alert the first had withheld.
+  const a = scriptedAlert();
+  // The photo takes longer to read than the check takes to answer, as on the real models.
+  const m = scriptedInfer({ chat: "I'm here with you.", photo: { content: SAMPLE_DESCRIPTION, delayMs: 60 }, homeCheck: (_b, n) => (n === 1 ? { home: "yes" } : { home: "no" }) });
+  const [, out] = await runTurn(body("i keep wishing i was dead", { photo: samplePhoto() }), ctxWith(m.infer, { alert: a.send, alertPolicy: { timeoutMs: 80, homeCheck: { model: "gpt-oss-safeguard-120b", reasoningEffort: "low", maxTokens: 600, timeoutMs: 80, attempts: 2, maxMessages: 40, maxChars: 8000 } } }));
+  assert.equal(m.calls.photo.length, 1, "the photo was read");
+  assert.equal(m.calls.homeCheck.length, 1, "the check was asked once");
+  assert.equal(a.sent.length, 0);
+  assert.equal(out.alert, null);
+  assert.equal(envelopeOf(out).alert.result, "withheld_home");
+  assert.match(out.reply, /988/);
 });
